@@ -4,25 +4,30 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 object TornSelectors {
-    // VERIFY against real _samples/login-page.html when provided
+    // Verified against _samples/login-page.html (captured 2026-11-14)
+    // Real DOM: <input id="player" name="email" type="email"> — name="email" is the correct attr
     val LOGIN_USERNAME_SELECTORS = listOf(
-        "input[name='player']",
+        "input[name='email']",    // ✅ confirmed: input#player has name="email"
+        "input[name='player']",   // id fallback (id="player" but name="email")
         "input[name='username']",
-        "input[name='email']",
-        "input[type='text']",
-        "input[type='email']"
+        "input[type='email']",
+        "input[type='text']"
     )
 
-    // VERIFY against real _samples/login-page.html when provided
+    // Verified against _samples/login-page.html (captured 2026-11-14)
     val LOGIN_PASSWORD_SELECTORS = listOf(
         "input[name='password']",
         "input[type='password']"
     )
 
-    // VERIFY against real _samples/login-page.html when provided
+    // Verified against _samples/login-page.html (captured 2026-11-14)
+    // Real DOM: <input type="submit" name="btnLogin" class="...loginBtn___Mn_MB">
+    // NOTE: button[type='submit'] will NOT match — it's an <input>, not <button>
     val LOGIN_SUBMIT_SELECTORS = listOf(
-        "button[type='submit']",
-        "input[type='submit']",
+        "input[name='btnLogin']",  // ✅ confirmed: most specific
+        "input[type='submit']",    // ✅ confirmed: works for <input type="submit">
+        ".loginBtn___Mn_MB",       // ✅ confirmed: CSS module class on submit input
+        "button[type='submit']",   // fallback for other sites
         ".login-btn"
     )
 
@@ -37,9 +42,10 @@ object TornSelectors {
         "input[name='totp']"
     )
 
-    // VERIFY against real _samples/hospital-page-rows.html when provided
+    // Verified against _samples/hospital-page-rows.html (captured 2026-11-14)
+    // Real DOM: <ul class="user-info-list-wrap"> containing <li> items
     val HOSPITAL_ROW_SELECTORS = listOf(
-        "ul.user-info-list-wrap > li",
+        "ul.user-info-list-wrap > li",  // ✅ confirmed working (3 rows captured)
         ".users-list > li",
         "table.hospital-list tr"
     )

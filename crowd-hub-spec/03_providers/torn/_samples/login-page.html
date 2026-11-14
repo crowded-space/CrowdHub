@@ -1,1 +1,88 @@
-<!-- PASTE_REAL_SAMPLE_HERE: outer HTML of the torn.com login <form> (no secrets) -->
+<!-- Real sample captured from https://www.torn.com/ (November 2026, logged-out state)
+     Captured: outerHTML of .popupWrapper___uWDPb (the login popup container)
+     which appears when clicking the "Login" button on the homepage.
+     The <form> inside targets /page.php?sid=Auth (POST).
+
+     Key selectors verified:
+       Username/email : input[name="email"]  id="player"  → TornSelectors.LOGIN_USERNAME_SELECTORS[0] works
+       Password       : input[name="password"]  id="password"  → TornSelectors.LOGIN_PASSWORD_SELECTORS[0] works
+       Submit         : input[type="submit"][name="btnLogin"]  .loginBtn___Mn_MB
+       No captcha present in this popup (captcha check in TornSelectors.CAPTCHA_OR_2FA_INDICATORS still correct)
+-->
+<div class="popupWrapper___uWDPb show___x9KGX">
+  <div class="popup___D2tyJ t-blue-cont bg-3___abVwM">
+
+    <!-- ===== MAIN LOGIN FORM ===== -->
+    <form name="login" method="post" action="/page.php?sid=Auth">
+      <div class="clearfix">
+        <span class="title___XZ3eF topSection___y6lyM left">Login to Torn</span>
+        <a class="topSection___y6lyM right" href="/register/">or register</a>
+      </div>
+
+      <!-- Username / Email field — name="email", id="player" -->
+      <input id="player"
+             class="input___uUOSZ player___z2tsr"
+             placeholder="email address"
+             type="email"
+             name="email">
+
+      <!-- Password field — name="password", id="password" -->
+      <div class="passwordWrapper___NrCxN">
+        <input id="password"
+               class="input___uUOSZ password___jyLHM"
+               placeholder="password"
+               type="password"
+               name="password">
+        <button class="showButton___Fp5NH show___x9KGX"
+                type="button"
+                aria-label="Show password"></button>
+      </div>
+
+      <!-- Hidden redirect field -->
+      <input type="hidden" value="https://www.torn.com/" name="redirectUrl">
+
+      <div class="loginWrapper___E78zY clearfix">
+        <div class="left loginDesc___P3lmD">
+          <div>Trouble signing in?</div>
+          <a id="recover-account-link" href="/account_recovery.php">Recover account</a>
+        </div>
+        <!-- Submit button — type="submit", name="btnLogin", class contains "loginBtn___Mn_MB" -->
+        <input class="torn-btn right loginBtn___Mn_MB"
+               type="submit"
+               value="Login"
+               name="btnLogin">
+      </div>
+    </form>
+
+    <!-- ===== SOCIAL LOGIN SECTION (below the form) ===== -->
+    <div class="continueSectionDividerWrapper___xPaBd">
+      <div class="divider___dn2SM top___e0kWR left___PpgH9"></div>
+      <div class="divider___dn2SM bottom___cPIgR left___PpgH9"></div>
+      <span class="title___XZ3eF">or continue with</span>
+      <div class="divider___dn2SM top___e0kWR right___UyuwU"></div>
+      <div class="divider___dn2SM bottom___cPIgR right___UyuwU"></div>
+    </div>
+
+    <!-- Google Sign-In (iframe-based) -->
+    <div class="googleBtnWrapper___fuDua">
+      <div class="googleSignInBtn___FJxuy">
+        <div class="S9gUrf-YoZ4jf" style="position: relative;">
+          <div></div>
+          <iframe src="https://accounts.google.com/gsi/button?type=standard&amp;shape=rectangular&amp;theme=filled_blue&amp;text=signin_with&amp;width=278&amp;logo_alignment=left&amp;is_fedcm_supported=true&amp;client_id=183848955969-gijph95tjf4ci5g2ilqe8ej0fin1hbct.apps.googleusercontent.com&amp;iframe_id=gsi_274199_425676&amp;cas=LUDu9tCEguN9B1hZqcqO8HlXxwIe8LJ9%2F%2F%2FFJTT8c5s&amp;hl=en"
+                  class="L5Fo6c-PQbLGe"
+                  allow="identity-credentials-get"
+                  id="gsi_274199_425676"
+                  title="Tombol Login dengan Google"
+                  style="display: block; position: relative; top: 0px; left: 0px; height: 44px; width: 298px; border: 0px; margin: -2px -10px;"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Apple Sign-In -->
+    <button type="button" id="apple-sign-in" class="appleSignInBtn___tYSLn">
+      <img class="appleLogo___DKlnH" alt="apple icon" src="/images/registration/apple.svg">
+      <span class="appleSignInBtnText___DBAZM">Sign in with Apple</span>
+    </button>
+
+  </div>
+</div>

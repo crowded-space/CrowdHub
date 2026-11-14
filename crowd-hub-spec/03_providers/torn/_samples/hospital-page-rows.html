@@ -1,1 +1,127 @@
-<!-- PASTE_REAL_SAMPLE_HERE: outer HTML of 2-3 rows of the hospital list page -->
+<!--
+  Sample: torn.com/hospitalview.php — Hospital List Rows
+  Captured: 2026-11-14 from live torn.com (logged-in session, UI Automation JS injection)
+  Source selector: ul.user-info-list-wrap > li  (confirmed working, 3 rows captured)
+
+  DOM structure notes:
+  - The hospital list is a <ul class="user-info-list-wrap"> containing <li> items.
+  - Each <li> has:
+      - ul#iconTray   → online/offline status icon
+      - span.user-wrap.user-faction → faction tag image (href to faction profile)
+      - span.user-wrap.user-name   → player name link (href /profiles.php?XID=<id>)
+          - data-placeholder="<name> [<XID>]"  ← reliable XID extraction point
+      - span.info-wrap → hospital details:
+          - span.time   → time remaining in hospital (e.g. "83h 17m")
+          - span.level  → player level
+          - span.reason → hospitalization reason (e.g. "Overdosed on Xanax")
+      - a.revive → revive button (class "reviveNotAvailable" or "revive" when available)
+  - li.gray = alternating row background (every other row)
+
+  TornSelectors.kt: use "ul.user-info-list-wrap > li" as the primary selector.
+  For player XID: parse href="/profiles.php?XID=<id>" or data-placeholder="Name [XID]"
+  For time remaining: span.time text content (strip leading/trailing whitespace)
+  For reason: span.reason text content
+  For online status: li.iconShow[aria-label] inside ul#iconTray → "Online" / "Offline" / "Idle"
+-->
+
+<!-- ROW 1: Player online, platinum faction -->
+<li class="gray ">
+    <ul id="iconTray" class="big svg singleicon" style="display: inline-block;"><li id="icon1___242469eb" class="iconShow" title="&lt;b&gt;Online&lt;/b&gt;" style=""><a aria-label="Online"></a></li></ul>
+    <span class="user-wrap user-faction">
+        <a class="user faction platinum" rel="nofollow" href="/factions.php?step=profile&amp;ID=9405"><img src="https://factiontags.torn.com/9405-51079.png" border="0" alt="Void" title="Void" style="opacity:0.6;filter:alpha(opacity=60)"></a>
+    </span>
+    <span class="user-wrap user-name">
+        <a class="user name " data-placeholder="NotB4-S3NS3I [2237741]" href="/profiles.php?XID=2237741" title="NotB4-S3NS3I [2237741]" aria-label="NotB4-S3NS3I [2237741]"><div class="honor-text-wrap default big" aria-hidden="true"><img srcset="/images/honors/1014/f.png 1x, /images/honors/1014/f@2x.png 2x, /images/honors/1014/f@3x.png 3x, /images/honors/1014/f@4x.png 4x" src="/images/honors/1014/f.png" border="0" alt="NotB4-S3NS3I [2237741]"> <span class="honor-text honor-text-svg"><span data-char="N"></span><span data-char="o"></span><span data-char="t"></span><span data-char="B"></span><span data-char="4"></span><span data-char="-"></span><span data-char="S"></span><span data-char="3"></span><span data-char="N"></span><span data-char="S"></span><span data-char="3"></span><span data-char="I"></span></span><span class="honor-text">NotB4-S3NS3I</span></div></a>
+    </span>
+    <span class="info-wrap">
+                <span class="time">
+                    <span class="title bold">
+                        Time<span class="t-hide">:</span> <span class="t-show">left:</span>
+                    </span>
+                    83h 17m 
+                </span>
+                <span class="level">
+                    <span class="title bold">
+                        Level:
+                    </span>
+                    62
+                </span>
+                <span class="reason"><span class="bold">Reason: </span>Overdosed on Xanax</span>
+            </span>
+    
+    <a class="revive reviveNotAvailable" href="revive.php?action=revive&amp;ID=2237741&amp;text_response=1">
+        <span class="revive-icon"></span>
+        <span class="title bold t-gray-3">REVIVE</span>
+    </a>
+    <div class="confirm-revive"></div>
+    
+    <div class="bottom-white"></div>
+</li>
+
+<!-- ROW 2: Player offline, silver faction -->
+<li class=" ">
+    <ul id="iconTray" class="big svg singleicon" style="display: inline-block;"><li id="icon2___ab73887e" class="iconShow" title="&lt;b&gt;Offline&lt;/b&gt;" style=""><a aria-label="Offline"></a></li></ul>
+    <span class="user-wrap user-faction">
+        <a class="user faction silver" rel="nofollow" href="/factions.php?step=profile&amp;ID=51708"><img src="https://factiontags.torn.com/51708-77051.png" border="0" alt="TGN" title="TGN" style="opacity:0.6;filter:alpha(opacity=60)"></a>
+    </span>
+    <span class="user-wrap user-name">
+        <a class="user name " data-placeholder="Niel4740 [4347309]" href="/profiles.php?XID=4347309" title="Niel4740 [4347309]" aria-label="Niel4740 [4347309]"><div class="honor-text-wrap default big" aria-hidden="true"><img srcset="/images/honors/135/f.png 1x, /images/honors/135/f@2x.png 2x, /images/honors/135/f@3x.png 3x, /images/honors/135/f@4x.png 4x" src="/images/honors/135/f.png" border="0" alt="Niel4740 [4347309]"> <span class="honor-text honor-text-svg"><span data-char="N"></span><span data-char="i"></span><span data-char="e"></span><span data-char="l"></span><span data-char="4"></span><span data-char="7"></span><span data-char="4"></span><span data-char="0"></span></span><span class="honor-text">Niel4740</span></div></a>
+    </span>
+    <span class="info-wrap">
+                <span class="time">
+                    <span class="title bold">
+                        Time<span class="t-hide">:</span> <span class="t-show">left:</span>
+                    </span>
+                    83h 7m 
+                </span>
+                <span class="level">
+                    <span class="title bold">
+                        Level:
+                    </span>
+                    25
+                </span>
+                <span class="reason"><span class="bold">Reason: </span>Overdosed on Xanax</span>
+            </span>
+    
+    <a class="revive reviveNotAvailable" href="revive.php?action=revive&amp;ID=4347309&amp;text_response=1">
+        <span class="revive-icon"></span>
+        <span class="title bold t-gray-3">REVIVE</span>
+    </a>
+    <div class="confirm-revive"></div>
+    
+    <div class="bottom-white"></div>
+</li>
+
+<!-- ROW 3: Player offline, bronze faction -->
+<li class="gray ">
+    <ul id="iconTray" class="big svg singleicon" style="display: inline-block;"><li id="icon2___97a9ae84" class="iconShow" title="&lt;b&gt;Offline&lt;/b&gt;" style=""><a aria-label="Offline"></a></li></ul>
+    <span class="user-wrap user-faction">
+        <a class="user faction bronze" rel="nofollow" href="/factions.php?step=profile&amp;ID=55330"><img src="https://factiontags.torn.com/55330-4649.png" border="0" alt="TWC" title="TWC" style="opacity:0.6;filter:alpha(opacity=60)"></a>
+    </span>
+    <span class="user-wrap user-name">
+        <a class="user name " data-placeholder="Extracto [4587575]" href="/profiles.php?XID=4587575" title="Extracto [4587575]" aria-label="Extracto [4587575]"><div class="honor-text-wrap default big" aria-hidden="true"><img srcset="/images/honors/687/f.png 1x, /images/honors/687/f@2x.png 2x, /images/honors/687/f@3x.png 3x, /images/honors/687/f@4x.png 4x" src="/images/honors/687/f.png" border="0" alt="Extracto [4587575]"> <span class="honor-text honor-text-svg"><span data-char="E"></span><span data-char="x"></span><span data-char="t"></span><span data-char="r"></span><span data-char="a"></span><span data-char="c"></span><span data-char="t"></span><span data-char="o"></span></span><span class="honor-text">Extracto</span></div></a>
+    </span>
+    <span class="info-wrap">
+                <span class="time">
+                    <span class="title bold">
+                        Time<span class="t-hide">:</span> <span class="t-show">left:</span>
+                    </span>
+                    83h 7m 
+                </span>
+                <span class="level">
+                    <span class="title bold">
+                        Level:
+                    </span>
+                    13
+                </span>
+                <span class="reason"><span class="bold">Reason: </span>Overdosed on Xanax</span>
+            </span>
+    
+    <a class="revive reviveNotAvailable" href="revive.php?action=revive&amp;ID=4587575&amp;text_response=1">
+        <span class="revive-icon"></span>
+        <span class="title bold t-gray-3">REVIVE</span>
+    </a>
+    <div class="confirm-revive"></div>
+    
+    <div class="bottom-white"></div>
+</li>
