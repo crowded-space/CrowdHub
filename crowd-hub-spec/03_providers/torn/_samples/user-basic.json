@@ -1,1 +1,15 @@
-{"_PASTE_REAL_SAMPLE_HERE": true}
+{
+  "profile": {
+    "id": 3962657,
+    "name": "Kagaa",
+    "level": 35,
+    "gender": "Female",
+    "status": {
+      "description": "Okay",
+      "details": null,
+      "state": "Okay",
+      "color": "green",
+      "until": null
+    }
+  }
+}

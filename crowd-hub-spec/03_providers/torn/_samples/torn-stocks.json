@@ -1,1 +1,739 @@
-{"_PASTE_REAL_SAMPLE_HERE": true}
+{
+  "stocks": [
+    {
+      "id": 1,
+      "name": "Torn & Shanghai Banking",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TSB.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TSB.svg"
+      },
+      "acronym": "TSB",
+      "market": {
+        "price": 1167.3,
+        "cap": 34611281756826,
+        "shares": 29650716831,
+        "investors": 30917
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 31,
+        "requirement": 3000000,
+        "description": "$50,000,000"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Torn City Investments",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCI.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCI.svg"
+      },
+      "acronym": "TCI",
+      "market": {
+        "price": 1145.08,
+        "cap": 28763022653912,
+        "shares": 25118788778,
+        "investors": 40451
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 1500000,
+        "description": "a 10% bank interest bonus"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Syscore MFG",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/SYS.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/SYS.svg"
+      },
+      "acronym": "SYS",
+      "market": {
+        "price": 651.9,
+        "cap": 11014573162441,
+        "shares": 16896108548,
+        "investors": 11929
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 3000000,
+        "description": "an Advanced firewall"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Legal Authorities Group",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/LAG.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/LAG.svg"
+      },
+      "acronym": "LAG",
+      "market": {
+        "price": 467.32,
+        "cap": 4713373630185,
+        "shares": 10085965998,
+        "investors": 16214
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 750000,
+        "description": "1x Lawyer's Business Card"
+      }
+    },
+    {
+      "id": 5,
+      "name": "Insured On Us",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/IOU.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/IOU.svg"
+      },
+      "acronym": "IOU",
+      "market": {
+        "price": 178.06,
+        "cap": 15863029351101,
+        "shares": 89088112721,
+        "investors": 27655
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 31,
+        "requirement": 3000000,
+        "description": "$12,000,000"
+      }
+    },
+    {
+      "id": 6,
+      "name": "Grain",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/GRN.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/GRN.svg"
+      },
+      "acronym": "GRN",
+      "market": {
+        "price": 331.25,
+        "cap": 9311809542444,
+        "shares": 28111123147,
+        "investors": 35621
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 31,
+        "requirement": 500000,
+        "description": "$4,000,000"
+      }
+    },
+    {
+      "id": 7,
+      "name": "Torn City Health Service",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/THS.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/THS.svg"
+      },
+      "acronym": "THS",
+      "market": {
+        "price": 377.3,
+        "cap": 8632570668645,
+        "shares": 22879858650,
+        "investors": 51527
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 150000,
+        "description": "1x Box of Medical Supplies"
+      }
+    },
+    {
+      "id": 8,
+      "name": "Yazoo",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/YAZ.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/YAZ.svg"
+      },
+      "acronym": "YAZ",
+      "market": {
+        "price": 53.21,
+        "cap": 2735691222655,
+        "shares": 51413103226,
+        "investors": 21403
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 1000000,
+        "description": "Free banner advertising"
+      }
+    },
+    {
+      "id": 9,
+      "name": "The Torn City Times",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCT.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCT.svg"
+      },
+      "acronym": "TCT",
+      "market": {
+        "price": 321.15,
+        "cap": 6003114180198,
+        "shares": 18692555442,
+        "investors": 44730
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 31,
+        "requirement": 100000,
+        "description": "$1,000,000"
+      }
+    },
+    {
+      "id": 10,
+      "name": "Crude & Co",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/CNC.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/CNC.svg"
+      },
+      "acronym": "CNC",
+      "market": {
+        "price": 813.69,
+        "cap": 51846904205431,
+        "shares": 63718251675,
+        "investors": 20431
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 31,
+        "requirement": 7500000,
+        "description": "$80,000,000"
+      }
+    },
+    {
+      "id": 11,
+      "name": "Messaging Inc.",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/MSG.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/MSG.svg"
+      },
+      "acronym": "MSG",
+      "market": {
+        "price": 292.91,
+        "cap": 713942985999,
+        "shares": 2437414175,
+        "investors": 10378
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 300000,
+        "description": "Free classified advertising"
+      }
+    },
+    {
+      "id": 12,
+      "name": "TC Music Industries",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TMI.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TMI.svg"
+      },
+      "acronym": "TMI",
+      "market": {
+        "price": 222.73,
+        "cap": 20499884596699,
+        "shares": 92039171179,
+        "investors": 19766
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 31,
+        "requirement": 6000000,
+        "description": "$25,000,000"
+      }
+    },
+    {
+      "id": 13,
+      "name": "TC Media Productions",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCP.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCP.svg"
+      },
+      "acronym": "TCP",
+      "market": {
+        "price": 562.96,
+        "cap": 4839512350763,
+        "shares": 8596547447,
+        "investors": 15079
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 1000000,
+        "description": "a Company sales boost"
+      }
+    },
+    {
+      "id": 14,
+      "name": "I Industries Ltd.",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/IIL.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/IIL.svg"
+      },
+      "acronym": "IIL",
+      "market": {
+        "price": 135.8,
+        "cap": 2662367064890,
+        "shares": 19605059388,
+        "investors": 25081
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 1000000,
+        "description": "50% coding time reduction"
+      }
+    },
+    {
+      "id": 15,
+      "name": "Feathery Hotels Group",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/FHG.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/FHG.svg"
+      },
+      "acronym": "FHG",
+      "market": {
+        "price": 898.55,
+        "cap": 75533016068808,
+        "shares": 84061005029,
+        "investors": 41315
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 2000000,
+        "description": "1x Feathery Hotel Coupon"
+      }
+    },
+    {
+      "id": 16,
+      "name": "Symbiotic Ltd.",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/SYM.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/SYM.svg"
+      },
+      "acronym": "SYM",
+      "market": {
+        "price": 730.84,
+        "cap": 41328703029434,
+        "shares": 56549590922,
+        "investors": 62354
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 500000,
+        "description": "1x Drug Pack"
+      }
+    },
+    {
+      "id": 17,
+      "name": "Lucky Shot Casino",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/LSC.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/LSC.svg"
+      },
+      "acronym": "LSC",
+      "market": {
+        "price": 608.85,
+        "cap": 7128511904537,
+        "shares": 11708157846,
+        "investors": 30947
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 500000,
+        "description": "1x Lottery Voucher"
+      }
+    },
+    {
+      "id": 18,
+      "name": "Performance Ribaldry",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/PRN.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/PRN.svg"
+      },
+      "acronym": "PRN",
+      "market": {
+        "price": 646.56,
+        "cap": 27162426528058,
+        "shares": 42010681960,
+        "investors": 37371
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 1000000,
+        "description": "1x Erotic DVD"
+      }
+    },
+    {
+      "id": 19,
+      "name": "Eaglewood Mercenary",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/EWM.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/EWM.svg"
+      },
+      "acronym": "EWM",
+      "market": {
+        "price": 291.11,
+        "cap": 5737548989152,
+        "shares": 19709212975,
+        "investors": 20831
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 1000000,
+        "description": "1x Box of Grenades"
+      }
+    },
+    {
+      "id": 20,
+      "name": "Torn City Motors",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCM.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCM.svg"
+      },
+      "acronym": "TCM",
+      "market": {
+        "price": 309.17,
+        "cap": 3249617634944,
+        "shares": 10510779296,
+        "investors": 16239
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 1000000,
+        "description": "10% racing skill gain boost"
+      }
+    },
+    {
+      "id": 21,
+      "name": "Empty Lunchbox Traders",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/ELT.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/ELT.svg"
+      },
+      "acronym": "ELT",
+      "market": {
+        "price": 326.22,
+        "cap": 2607976769260,
+        "shares": 7994533656,
+        "investors": 7678
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 5000000,
+        "description": "10% home upgrade discount"
+      }
+    },
+    {
+      "id": 22,
+      "name": "Home Retail Group",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/HRG.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/HRG.svg"
+      },
+      "acronym": "HRG",
+      "market": {
+        "price": 266.37,
+        "cap": 24817666251280,
+        "shares": 93169899956,
+        "investors": 19125
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 31,
+        "requirement": 10000000,
+        "description": "1x Random Property"
+      }
+    },
+    {
+      "id": 23,
+      "name": "Tell Group Plc.",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TGP.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TGP.svg"
+      },
+      "acronym": "TGP",
+      "market": {
+        "price": 144.06,
+        "cap": 5849984948801,
+        "shares": 40607975488,
+        "investors": 16909
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 2500000,
+        "description": "a Company advertising boost"
+      }
+    },
+    {
+      "id": 24,
+      "name": "Munster Beverage Corp.",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/MUN.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/MUN.svg"
+      },
+      "acronym": "MUN",
+      "market": {
+        "price": 544.1,
+        "cap": 40473073621333,
+        "shares": 74385358613,
+        "investors": 18414
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 5000000,
+        "description": "1x Six-Pack of Energy Drink"
+      }
+    },
+    {
+      "id": 25,
+      "name": "West Side University",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/WSU.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/WSU.svg"
+      },
+      "acronym": "WSU",
+      "market": {
+        "price": 108.41,
+        "cap": 7261484193537,
+        "shares": 66981682442,
+        "investors": 68730
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 1000000,
+        "description": "a 10% education course time reduction"
+      }
+    },
+    {
+      "id": 26,
+      "name": "International School TC",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/IST.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/IST.svg"
+      },
+      "acronym": "IST",
+      "market": {
+        "price": 542.5,
+        "cap": 1304314529053,
+        "shares": 2404266413,
+        "investors": 19194
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 100000,
+        "description": "Free education courses"
+      }
+    },
+    {
+      "id": 27,
+      "name": "Big Al's Gun Shop",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/BAG.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/BAG.svg"
+      },
+      "acronym": "BAG",
+      "market": {
+        "price": 500.13,
+        "cap": 7785726551725,
+        "shares": 15567405578,
+        "investors": 13102
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 3000000,
+        "description": "1x Ammunition Pack"
+      }
+    },
+    {
+      "id": 28,
+      "name": "Evil Ducks Candy Corp",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/EVL.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/EVL.svg"
+      },
+      "acronym": "EVL",
+      "market": {
+        "price": 664.42,
+        "cap": 4967291374283,
+        "shares": 7476131625,
+        "investors": 24024
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 100000,
+        "description": "1000 happiness"
+      }
+    },
+    {
+      "id": 29,
+      "name": "Mc Smoogle Corp",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/MCS.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/MCS.svg"
+      },
+      "acronym": "MCS",
+      "market": {
+        "price": 854.82,
+        "cap": 39214888783308,
+        "shares": 45875024898,
+        "investors": 38916
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 350000,
+        "description": "100 energy"
+      }
+    },
+    {
+      "id": 30,
+      "name": "Wind Lines Travel",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/WLT.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/WLT.svg"
+      },
+      "acronym": "WLT",
+      "market": {
+        "price": 795.62,
+        "cap": 19454428603171,
+        "shares": 24451909961,
+        "investors": 15631
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 9000000,
+        "description": "Private jet access"
+      }
+    },
+    {
+      "id": 31,
+      "name": "Torn City Clothing",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCC.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCC.svg"
+      },
+      "acronym": "TCC",
+      "market": {
+        "price": 511.47,
+        "cap": 5447651788036,
+        "shares": 10650970317,
+        "investors": 11480
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 31,
+        "requirement": 7500000,
+        "description": "1x Clothing Cache"
+      }
+    },
+    {
+      "id": 32,
+      "name": "Alcoholics Synonymous",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/ASS.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/ASS.svg"
+      },
+      "acronym": "ASS",
+      "market": {
+        "price": 352.14,
+        "cap": 6388271129050,
+        "shares": 18141282243,
+        "investors": 17864
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 1000000,
+        "description": "1x Six-Pack of Alcohol"
+      }
+    },
+    {
+      "id": 33,
+      "name": "Herbal Releaf Co.",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/CBD.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/CBD.svg"
+      },
+      "acronym": "CBD",
+      "market": {
+        "price": 433.57,
+        "cap": 8889087834084,
+        "shares": 20502082326,
+        "investors": 23100
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 350000,
+        "description": "50 nerve"
+      }
+    },
+    {
+      "id": 34,
+      "name": "Lo Squalo Waste",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/LOS.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/LOS.svg"
+      },
+      "acronym": "LOS",
+      "market": {
+        "price": 108.8,
+        "cap": 4132395961882,
+        "shares": 37981580532,
+        "investors": 11475
+      },
+      "bonus": {
+        "passive": true,
+        "frequency": 7,
+        "requirement": 7500000,
+        "description": "25% boost to mission credits and money earned"
+      }
+    },
+    {
+      "id": 35,
+      "name": "PointLess",
+      "images": {
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/PTS.svg",
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/PTS.svg"
+      },
+      "acronym": "PTS",
+      "market": {
+        "price": 81.53,
+        "cap": 18938425570810,
+        "shares": 232287815170,
+        "investors": 26944
+      },
+      "bonus": {
+        "passive": false,
+        "frequency": 7,
+        "requirement": 10000000,
+        "description": "100 points"
+      }
+    }
+  ]
+}

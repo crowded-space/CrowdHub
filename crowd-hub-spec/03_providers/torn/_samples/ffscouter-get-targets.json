@@ -1,1 +1,70 @@
-{"_PASTE_REAL_SAMPLE_HERE": true}
+{
+  "parameters": {
+    "limit": 5,
+    "preset": null,
+    "key": "REDACTED_KEY",
+    "generated_at": 1794668710
+  },
+  "targets": [
+    {
+      "player_id": 4154099,
+      "name": "Jenpine",
+      "level": 29,
+      "fair_fight": 5.43,
+      "bss_public": 1935,
+      "bss_public_timestamp": 1793547164,
+      "bs_estimate": 973499,
+      "bs_estimate_human": "973k",
+      "last_action": 1794559999,
+      "source": "bss"
+    },
+    {
+      "player_id": 3651375,
+      "name": "Baphomet00",
+      "level": 10,
+      "fair_fight": 1.18,
+      "bss_public": 80,
+      "bss_public_timestamp": 1791116427,
+      "bs_estimate": 1664,
+      "bs_estimate_human": "1.66k",
+      "last_action": 1751079473,
+      "source": "bss"
+    },
+    {
+      "player_id": 4561900,
+      "name": "dagrome",
+      "level": 2,
+      "fair_fight": 1.05,
+      "bss_public": 24,
+      "bss_public_timestamp": 1794238528,
+      "bs_estimate": 150,
+      "bs_estimate_human": "150",
+      "last_action": 1792702368,
+      "source": "bss"
+    },
+    {
+      "player_id": 2637272,
+      "name": "Yeetmanus",
+      "level": 5,
+      "fair_fight": 1.05,
+      "bss_public": 22,
+      "bss_public_timestamp": 1788697153,
+      "bs_estimate": 126,
+      "bs_estimate_human": "126",
+      "last_action": 1700000408,
+      "source": "bss"
+    },
+    {
+      "player_id": 4280375,
+      "name": "cwhsu1126",
+      "level": 30,
+      "fair_fight": 1.73,
+      "bss_public": 318,
+      "bss_public_timestamp": 1794549420,
+      "bs_estimate": 26292,
+      "bs_estimate_human": "26.3k",
+      "last_action": 1794354723,
+      "source": "bss"
+    }
+  ]
+}

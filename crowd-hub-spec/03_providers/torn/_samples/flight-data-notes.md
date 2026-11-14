@@ -1,4 +1,12 @@
 # Flight data notes (fill in before Phase 2)
-- status.until populated for Traveling? (yes/no/unknown): 
+- status.until populated for Traveling? (yes/no/unknown): no (`null` in v2 API; until is only populated when in Hospital or Jail)
 - plane_image_type values seen (and what flight type you believe each is):
+  - `light_aircraft` (Private Airstrip)
+  - `airliner` (Standard / Commercial flight)
+  - `private_jet` (Private Jet / Business Class)
 - Example descriptions seen for Traveling / Returning / Abroad / Hospital abroad:
+  - Traveling: `Traveling from Torn to Canada`, `Traveling from Switzerland to Torn`
+  - Returning: `Traveling from Argentina to Torn`, `Traveling from South Africa to Torn`
+  - Abroad: `In Canada`, `In Cayman Islands`, `In China`, `In Switzerland`
+  - Hospital abroad: `In a Hawaiian hospital for 3 hrs 9 mins`, `In a Japanese hospital for 38 mins`, `In a South African hospital for 18 mins`
+  - Hospital in Torn: `In hospital for 10 mins`, `In hospital for 32 mins`

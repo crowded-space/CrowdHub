@@ -1,1 +1,46 @@
-{"_PASTE_REAL_SAMPLE_HERE": true}
+{
+  "bars": {
+    "energy": {
+      "current": 0,
+      "maximum": 150,
+      "increment": 5,
+      "interval": 600,
+      "tick_time": 294,
+      "full_time": 17694
+    },
+    "nerve": {
+      "current": 19,
+      "maximum": 45,
+      "increment": 1,
+      "interval": 300,
+      "tick_time": 294,
+      "full_time": 7794
+    },
+    "happy": {
+      "current": 4949,
+      "maximum": 5025,
+      "increment": 5,
+      "interval": 900,
+      "tick_time": 594,
+      "full_time": 14094
+    },
+    "life": {
+      "current": 2031,
+      "maximum": 2031,
+      "increment": 121,
+      "interval": 300,
+      "tick_time": 294,
+      "full_time": 0
+    },
+    "chain": {
+      "id": 0,
+      "current": 0,
+      "max": 10,
+      "timeout": 0,
+      "modifier": 1,
+      "cooldown": 0,
+      "start": 0,
+      "end": 1794668706
+    }
+  }
+}

@@ -1,1 +1,2110 @@
-{"_PASTE_REAL_SAMPLE_HERE": true}
+{
+  "rankedwars": [
+    {
+      "id": 52345,
+      "start": 1794596400,
+      "end": 1794661301,
+      "target": 8900,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 22300,
+          "chain": 1
+        },
+        {
+          "id": 42055,
+          "name": "Dead Fragment",
+          "score": 13399,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 51861,
+      "start": 1794063600,
+      "end": 1794301213,
+      "target": 10203,
+      "winner": 46708,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7759,
+          "chain": 1
+        },
+        {
+          "id": 46708,
+          "name": "The Revenant",
+          "score": 18000,
+          "chain": 72
+        }
+      ]
+    },
+    {
+      "id": 51027,
+      "start": 1792256400,
+      "end": 1792486813,
+      "target": 10443,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 17772,
+          "chain": 1
+        },
+        {
+          "id": 22887,
+          "name": "Resilience",
+          "score": 7165,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 50599,
+      "start": 1791644400,
+      "end": 1791692950,
+      "target": 18000,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 19522,
+          "chain": 1
+        },
+        {
+          "id": 12249,
+          "name": "Aurora Surrealis",
+          "score": 1515,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 50101,
+      "start": 1790856000,
+      "end": 1791241210,
+      "target": 2880,
+      "winner": 39756,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7458,
+          "chain": 1
+        },
+        {
+          "id": 39756,
+          "name": "Abusement Park",
+          "score": 10350,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 49665,
+      "start": 1790341200,
+      "end": 1790654417,
+      "target": 6444,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 13712,
+          "chain": 1
+        },
+        {
+          "id": 27902,
+          "name": "SMTH - Concord",
+          "score": 7211,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 49268,
+      "start": 1789848000,
+      "end": 1790060411,
+      "target": 11328,
+      "winner": 8062,
+      "factions": [
+        {
+          "id": 8062,
+          "name": "Ruthless Reborn",
+          "score": 18534,
+          "chain": 84
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7047,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 48560,
+      "start": 1788552000,
+      "end": 1788818408,
+      "target": 8673,
+      "winner": 36891,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 8094,
+          "chain": 1
+        },
+        {
+          "id": 36891,
+          "name": "FLATLINE",
+          "score": 16795,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 48116,
+      "start": 1787846400,
+      "end": 1788246013,
+      "target": 2124,
+      "winner": 44758,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 8119,
+          "chain": 1
+        },
+        {
+          "id": 44758,
+          "name": "NPO - Prosperity",
+          "score": 10261,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 47654,
+      "start": 1787414400,
+      "end": 1787442160,
+      "target": 18000,
+      "winner": 8076,
+      "factions": [
+        {
+          "id": 8076,
+          "name": "Order Through Chaos",
+          "score": 20269,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 2257,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 47051,
+      "start": 1786215600,
+      "end": 1786442407,
+      "target": 10740,
+      "winner": 8867,
+      "factions": [
+        {
+          "id": 8867,
+          "name": "Monarch Chrysalis",
+          "score": 16040,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 5258,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 46524,
+      "start": 1785510000,
+      "end": 1785816007,
+      "target": 5548,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 13045,
+          "chain": 1
+        },
+        {
+          "id": 37537,
+          "name": "Monarch Genesis",
+          "score": 7459,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 46073,
+      "start": 1784923200,
+      "end": 1785150008,
+      "target": 10740,
+      "winner": 937,
+      "factions": [
+        {
+          "id": 937,
+          "name": "Sport Club",
+          "score": 18051,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7278,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 45594,
+      "start": 1784401200,
+      "end": 1784438452,
+      "target": 17400,
+      "winner": 33007,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 2111,
+          "chain": 1
+        },
+        {
+          "id": 33007,
+          "name": "HAKA",
+          "score": 19514,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 45115,
+      "start": 1783796400,
+      "end": 1783830236,
+      "target": 17700,
+      "winner": 1149,
+      "factions": [
+        {
+          "id": 1149,
+          "name": "WTF",
+          "score": 21311,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 3600,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 44783,
+      "start": 1783022400,
+      "end": 1783042012,
+      "target": 18000,
+      "winner": 27223,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 1700,
+          "chain": 1
+        },
+        {
+          "id": 27223,
+          "name": "Stompers",
+          "score": 19702,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 44354,
+      "start": 1782586800,
+      "end": 1782802814,
+      "target": 11340,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 19083,
+          "chain": 1
+        },
+        {
+          "id": 16057,
+          "name": "Glory to Heroes",
+          "score": 7597,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 44132,
+      "start": 1781812800,
+      "end": 1782180010,
+      "target": 3780,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 12339,
+          "chain": 1
+        },
+        {
+          "id": 47710,
+          "name": "PT-GuemLand",
+          "score": 8461,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 43692,
+      "start": 1781208000,
+      "end": 1781539207,
+      "target": 4650,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 12202,
+          "chain": 1
+        },
+        {
+          "id": 46978,
+          "name": "())))))",
+          "score": 7507,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 43308,
+      "start": 1780772400,
+      "end": 1780995607,
+      "target": 10980,
+      "winner": 22781,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6044,
+          "chain": 1
+        },
+        {
+          "id": 22781,
+          "name": "The Wolverines",
+          "score": 17108,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 42908,
+      "start": 1780167600,
+      "end": 1780369216,
+      "target": 12060,
+      "winner": 8836,
+      "factions": [
+        {
+          "id": 8836,
+          "name": "Vinerri",
+          "score": 27329,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15096,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 42194,
+      "start": 1779552000,
+      "end": 1779768120,
+      "target": 9387,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15746,
+          "chain": 1
+        },
+        {
+          "id": 44758,
+          "name": "NPO - Prosperity",
+          "score": 6355,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 41981,
+      "start": 1778958000,
+      "end": 1779166815,
+      "target": 11440,
+      "winner": 16282,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6281,
+          "chain": 1
+        },
+        {
+          "id": 16282,
+          "name": "Nuclear Winter",
+          "score": 17771,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 41606,
+      "start": 1778259600,
+      "end": 1778440176,
+      "target": 12702,
+      "winner": 12094,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 5071,
+          "chain": 1
+        },
+        {
+          "id": 12094,
+          "name": "Nuclear Fusion",
+          "score": 17776,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 41292,
+      "start": 1777737600,
+      "end": 1777932055,
+      "target": 10005,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15048,
+          "chain": 1
+        },
+        {
+          "id": 23952,
+          "name": "Midnight Plague",
+          "score": 5000,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 40583,
+      "start": 1777132800,
+      "end": 1777356070,
+      "target": 8784,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 14155,
+          "chain": 1
+        },
+        {
+          "id": 46442,
+          "name": "The Resolute",
+          "score": 5350,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 40406,
+      "start": 1776445200,
+      "end": 1776736858,
+      "target": 6090,
+      "winner": 44865,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7406,
+          "chain": 1
+        },
+        {
+          "id": 44865,
+          "name": "Violent Resolution",
+          "score": 13574,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 40084,
+      "start": 1775923200,
+      "end": 1776056118,
+      "target": 12702,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 39781,
+          "chain": 1
+        },
+        {
+          "id": 27370,
+          "name": "Desert Eagle",
+          "score": 27079,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 39692,
+      "start": 1775307600,
+      "end": 1775538055,
+      "target": 10266,
+      "winner": 11796,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 8204,
+          "chain": 1
+        },
+        {
+          "id": 11796,
+          "name": "SMTH - Bright Summit",
+          "score": 18511,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 39010,
+      "start": 1774634400,
+      "end": 1774918859,
+      "target": 6380,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 13548,
+          "chain": 1
+        },
+        {
+          "id": 15151,
+          "name": "The ZOO",
+          "score": 7062,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 38917,
+      "start": 1774112400,
+      "end": 1774303255,
+      "target": 10080,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 16639,
+          "chain": 1
+        },
+        {
+          "id": 42055,
+          "name": "Dead Fragment",
+          "score": 6513,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 38320,
+      "start": 1773507600,
+      "end": 1773702061,
+      "target": 8970,
+      "winner": 9032,
+      "factions": [
+        {
+          "id": 9032,
+          "name": "Wolf Pack",
+          "score": 15669,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6629,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 37711,
+      "start": 1772132400,
+      "end": 1772413257,
+      "target": 6255,
+      "winner": 41419,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6697,
+          "chain": 1
+        },
+        {
+          "id": 41419,
+          "name": "Neon Cartel",
+          "score": 13038,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 37351,
+      "start": 1771632000,
+      "end": 1771660944,
+      "target": 14200,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15395,
+          "chain": 1
+        },
+        {
+          "id": 9201,
+          "name": "Destination Unknown",
+          "score": 1184,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 37139,
+      "start": 1771020000,
+      "end": 1771243255,
+      "target": 8906,
+      "winner": 25874,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7139,
+          "chain": 1
+        },
+        {
+          "id": 25874,
+          "name": "Hookers n Blow",
+          "score": 16152,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 36690,
+      "start": 1770415200,
+      "end": 1770674461,
+      "target": 7293,
+      "winner": 13665,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6817,
+          "chain": 1
+        },
+        {
+          "id": 13665,
+          "name": "PT-Painguins",
+          "score": 14202,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 36215,
+      "start": 1769716800,
+      "end": 1769766358,
+      "target": 16700,
+      "winner": 7969,
+      "factions": [
+        {
+          "id": 7969,
+          "name": "WIT-Premier",
+          "score": 22566,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 5864,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 35844,
+      "start": 1768672800,
+      "end": 1768903255,
+      "target": 9499,
+      "winner": 35507,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7064,
+          "chain": 1
+        },
+        {
+          "id": 35507,
+          "name": "The Nest",
+          "score": 16601,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 35220,
+      "start": 1767981600,
+      "end": 1768294857,
+      "target": 5256,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 10305,
+          "chain": 1
+        },
+        {
+          "id": 22887,
+          "name": "Resilience",
+          "score": 5033,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 34602,
+      "start": 1766174400,
+      "end": 1766462455,
+      "target": 6794,
+      "winner": 16053,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6172,
+          "chain": 1
+        },
+        {
+          "id": 16053,
+          "name": "Asylum 2.0",
+          "score": 13093,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 34265,
+      "start": 1764943200,
+      "end": 1765245656,
+      "target": 6903,
+      "winner": 11796,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7095,
+          "chain": 1
+        },
+        {
+          "id": 11796,
+          "name": "SMTH - Bright Summit",
+          "score": 14011,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 34035,
+      "start": 1764277200,
+      "end": 1764576055,
+      "target": 6960,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 8836,
+          "name": "Vinerri",
+          "score": 6007,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 13057,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 33516,
+      "start": 1763654400,
+      "end": 1763964056,
+      "target": 6623,
+      "winner": 8422,
+      "factions": [
+        {
+          "id": 8422,
+          "name": "Monarch Cupid",
+          "score": 14045,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7309,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 33202,
+      "start": 1763136000,
+      "end": 1763159013,
+      "target": 17600,
+      "winner": 8151,
+      "factions": [
+        {
+          "id": 8151,
+          "name": "Chromatic",
+          "score": 18217,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 610,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 32796,
+      "start": 1762614000,
+      "end": 1762819263,
+      "target": 8976,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15286,
+          "chain": 1
+        },
+        {
+          "id": 40692,
+          "name": "Kingdom of Asgard",
+          "score": 6206,
+          "chain": 8
+        }
+      ]
+    },
+    {
+      "id": 32402,
+      "start": 1760724000,
+      "end": 1761004857,
+      "target": 7380,
+      "winner": 937,
+      "factions": [
+        {
+          "id": 937,
+          "name": "Sport Club",
+          "score": 12538,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 5038,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 32124,
+      "start": 1760032800,
+      "end": 1760396455,
+      "target": 3542,
+      "winner": 8989,
+      "factions": [
+        {
+          "id": 8989,
+          "name": "JUX HQ",
+          "score": 10213,
+          "chain": 1
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6607,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 31781,
+      "start": 1759453200,
+      "end": 1759809655,
+      "target": 4104,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 11861,
+          "chain": 1
+        },
+        {
+          "id": 20465,
+          "name": "SMTH - Phoenix Nirvana",
+          "score": 7702,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 31327,
+      "start": 1758913200,
+      "end": 1759190456,
+      "target": 7958,
+      "winner": 3241,
+      "factions": [
+        {
+          "id": 3241,
+          "name": "JFK",
+          "score": 13102,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 5037,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 30922,
+      "start": 1758391200,
+      "end": 1758443317,
+      "target": 14500,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 19680,
+          "chain": 1
+        },
+        {
+          "id": 26437,
+          "name": "The Prowl",
+          "score": 5172,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 30616,
+      "start": 1757779200,
+      "end": 1757880840,
+      "target": 13015,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 22749,
+          "chain": 1
+        },
+        {
+          "id": 14821,
+          "name": "JFK - Future Killers",
+          "score": 9730,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 30493,
+      "start": 1757080800,
+      "end": 1757105237,
+      "target": 16700,
+      "winner": 10739,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 3032,
+          "chain": 1
+        },
+        {
+          "id": 10739,
+          "name": "The Next Level - Forge",
+          "score": 19739,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 30044,
+      "start": 1756476000,
+      "end": 1756756859,
+      "target": 6660,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 12047,
+          "chain": 1
+        },
+        {
+          "id": 46442,
+          "name": "The Resolute",
+          "score": 5264,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 29569,
+      "start": 1755968400,
+      "end": 1756049983,
+      "target": 16000,
+      "winner": 22492,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7074,
+          "chain": 1
+        },
+        {
+          "id": 22492,
+          "name": "Dystopia",
+          "score": 23080,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 29175,
+      "start": 1754661600,
+      "end": 1754985655,
+      "target": 5709,
+      "winner": 16335,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4184,
+          "chain": 1
+        },
+        {
+          "id": 16335,
+          "name": "SMTH - November Chopin",
+          "score": 10022,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 28902,
+      "start": 1754074800,
+      "end": 1754362855,
+      "target": 6923,
+      "winner": 8867,
+      "factions": [
+        {
+          "id": 8867,
+          "name": "Monarch Chrysalis",
+          "score": 10029,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 3102,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 28577,
+      "start": 1753369200,
+      "end": 1753718455,
+      "target": 3458,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 7547,
+          "chain": 1
+        },
+        {
+          "id": 21234,
+          "name": "Underground Nation",
+          "score": 4065,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 28125,
+      "start": 1752764400,
+      "end": 1753149660,
+      "target": 2320,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6046,
+          "chain": 1
+        },
+        {
+          "id": 36134,
+          "name": "SMTH - Silver Hand",
+          "score": 3610,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 27930,
+      "start": 1752177600,
+      "end": 1752239901,
+      "target": 13800,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 18412,
+          "chain": 1
+        },
+        {
+          "id": 9420,
+          "name": "The Pusheen Army",
+          "score": 4608,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 27509,
+      "start": 1751652000,
+      "end": 1751922056,
+      "target": 6336,
+      "winner": 7093,
+      "factions": [
+        {
+          "id": 7093,
+          "name": "Halos",
+          "score": 10520,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4087,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 27404,
+      "start": 1751058000,
+      "end": 1751313656,
+      "target": 6864,
+      "winner": 40518,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4146,
+          "chain": 1
+        },
+        {
+          "id": 40518,
+          "name": "Monarch Leviathan",
+          "score": 11010,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 26998,
+      "start": 1750449600,
+      "end": 1750716058,
+      "target": 6419,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 9010,
+          "chain": 1
+        },
+        {
+          "id": 20554,
+          "name": "7DS*: Pride",
+          "score": 2559,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 26832,
+      "start": 1749931200,
+      "end": 1750015708,
+      "target": 16800,
+      "winner": 7969,
+      "factions": [
+        {
+          "id": 7969,
+          "name": "WIT-Premier",
+          "score": 26456,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 9655,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 26307,
+      "start": 1749326400,
+      "end": 1749514344,
+      "target": 10082,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 13707,
+          "chain": 1
+        },
+        {
+          "id": 10877,
+          "name": "Valence",
+          "score": 3622,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 26171,
+      "start": 1748527200,
+      "end": 1748894457,
+      "target": 2940,
+      "winner": 27902,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4139,
+          "chain": 1
+        },
+        {
+          "id": 27902,
+          "name": "SMTH - Concord",
+          "score": 7124,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 25978,
+      "start": 1748116800,
+      "end": 1748139455,
+      "target": 13600,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 13938,
+          "chain": 1
+        },
+        {
+          "id": 44865,
+          "name": "Violent Resolution",
+          "score": 333,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 25675,
+      "start": 1747508400,
+      "end": 1747688455,
+      "target": 10074,
+      "winner": 26312,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4672,
+          "chain": 1
+        },
+        {
+          "id": 26312,
+          "name": "JFK - Misfits",
+          "score": 14752,
+          "chain": 3990
+        }
+      ]
+    },
+    {
+      "id": 25245,
+      "start": 1746813600,
+      "end": 1747112547,
+      "target": 6560,
+      "winner": 13665,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 3142,
+          "chain": 1
+        },
+        {
+          "id": 13665,
+          "name": "PT-Painguins",
+          "score": 9708,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 25103,
+      "start": 1746133200,
+      "end": 1746181665,
+      "target": 16400,
+      "winner": 3241,
+      "factions": [
+        {
+          "id": 3241,
+          "name": "JFK",
+          "score": 18040,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 1633,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 24851,
+      "start": 1745604000,
+      "end": 1745884856,
+      "target": 7830,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 13577,
+          "chain": 1
+        },
+        {
+          "id": 14441,
+          "name": "Volatile Element",
+          "score": 5592,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 24468,
+      "start": 1745100000,
+      "end": 1745226964,
+      "target": 15312,
+      "winner": 9357,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 13778,
+          "chain": 1
+        },
+        {
+          "id": 9357,
+          "name": "Capacity X",
+          "score": 29097,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 24182,
+      "start": 1744394400,
+      "end": 1744423827,
+      "target": 17700,
+      "winner": 27223,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4554,
+          "chain": 1
+        },
+        {
+          "id": 27223,
+          "name": "Stompers",
+          "score": 22270,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 23991,
+      "start": 1743714000,
+      "end": 1743735261,
+      "target": 17600,
+      "winner": 8867,
+      "factions": [
+        {
+          "id": 8867,
+          "name": "Monarch Chrysalis",
+          "score": 20469,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 2867,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 23737,
+      "start": 1743282000,
+      "end": 1743298549,
+      "target": 17900,
+      "winner": 21368,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 614,
+          "chain": 1
+        },
+        {
+          "id": 21368,
+          "name": "Escensio Incursus",
+          "score": 18517,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 23393,
+      "start": 1742515200,
+      "end": 1742893256,
+      "target": 3186,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6600,
+          "chain": 1
+        },
+        {
+          "id": 20465,
+          "name": "SMTH - Phoenix Nirvana",
+          "score": 3391,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 22913,
+      "start": 1741467600,
+      "end": 1741615258,
+      "target": 14678,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 21904,
+          "chain": 1
+        },
+        {
+          "id": 36891,
+          "name": "FLATLINE",
+          "score": 7070,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 22728,
+      "start": 1740690000,
+      "end": 1740720798,
+      "target": 14800,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 17608,
+          "chain": 1
+        },
+        {
+          "id": 30009,
+          "name": "White Rabbits",
+          "score": 2799,
+          "chain": 80
+        }
+      ]
+    },
+    {
+      "id": 22509,
+      "start": 1740261600,
+      "end": 1740313909,
+      "target": 14600,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15957,
+          "chain": 1
+        },
+        {
+          "id": 26312,
+          "name": "JFK - Misfits",
+          "score": 1353,
+          "chain": 3990
+        }
+      ]
+    },
+    {
+      "id": 22221,
+      "start": 1739556000,
+      "end": 1739815255,
+      "target": 7446,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 12544,
+          "chain": 1
+        },
+        {
+          "id": 20514,
+          "name": "Gusti Mboten Sare",
+          "score": 5075,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 21899,
+      "start": 1738875600,
+      "end": 1739199655,
+      "target": 4884,
+      "winner": 8400,
+      "factions": [
+        {
+          "id": 8400,
+          "name": "Lingering Insanity",
+          "score": 10445,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 5443,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 21649,
+      "start": 1738270800,
+      "end": 1738320163,
+      "target": 14600,
+      "winner": 33241,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 11032,
+          "chain": 1
+        },
+        {
+          "id": 33241,
+          "name": "Nub Navy",
+          "score": 25646,
+          "chain": 612
+        }
+      ]
+    },
+    {
+      "id": 21557,
+      "start": 1737734400,
+      "end": 1737928857,
+      "target": 10074,
+      "winner": 22887,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 5094,
+          "chain": 1
+        },
+        {
+          "id": 22887,
+          "name": "Resilience",
+          "score": 15223,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 21068,
+      "start": 1737036000,
+      "end": 1737367258,
+      "target": 4619,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 8729,
+          "chain": 1
+        },
+        {
+          "id": 25857,
+          "name": "Road House",
+          "score": 4062,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 20612,
+      "start": 1736024400,
+      "end": 1736222456,
+      "target": 10200,
+      "winner": 8085,
+      "factions": [
+        {
+          "id": 8085,
+          "name": "Nuclear Blast",
+          "score": 14286,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4059,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 20360,
+      "start": 1734710400,
+      "end": 1734740566,
+      "target": 14800,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 19342,
+          "chain": 1
+        },
+        {
+          "id": 9047,
+          "name": "DarkHearts",
+          "score": 4533,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 20135,
+      "start": 1733490000,
+      "end": 1733824855,
+      "target": 4500,
+      "winner": 20465,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4969,
+          "chain": 1
+        },
+        {
+          "id": 20465,
+          "name": "SMTH - Phoenix Nirvana",
+          "score": 9522,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 19844,
+      "start": 1732917600,
+      "end": 1733198455,
+      "target": 7965,
+      "winner": 366,
+      "factions": [
+        {
+          "id": 366,
+          "name": "Evolution",
+          "score": 12107,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4078,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 19637,
+      "start": 1732280400,
+      "end": 1732361613,
+      "target": 14900,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 23643,
+          "chain": 1
+        },
+        {
+          "id": 39756,
+          "name": "Abusement Park",
+          "score": 8739,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 19419,
+      "start": 1731592800,
+      "end": 1731891655,
+      "target": 6920,
+      "winner": 19,
+      "factions": [
+        {
+          "id": 19,
+          "name": "39th Street Killers",
+          "score": 12016,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 5014,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 19024,
+      "start": 1731157200,
+      "end": 1731355260,
+      "target": 9928,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15103,
+          "chain": 1
+        },
+        {
+          "id": 27902,
+          "name": "SMTH - Concord",
+          "score": 5037,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 17982,
+      "start": 1727550000,
+      "end": 1727570684,
+      "target": 14000,
+      "winner": 27223,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 2491,
+          "chain": 1
+        },
+        {
+          "id": 27223,
+          "name": "Stompers",
+          "score": 16493,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 17638,
+      "start": 1726336800,
+      "end": 1726520457,
+      "target": 10080,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15518,
+          "chain": 1
+        },
+        {
+          "id": 42435,
+          "name": "Nub Army",
+          "score": 5415,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 17443,
+      "start": 1725735600,
+      "end": 1725904855,
+      "target": 10640,
+      "winner": 9036,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 14864,
+          "chain": 1
+        },
+        {
+          "id": 14686,
+          "name": "Endless Endeavor",
+          "score": 4178,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 17130,
+      "start": 1725022800,
+      "end": 1725097902,
+      "target": 14800,
+      "winner": 20465,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 10917,
+          "chain": 1
+        },
+        {
+          "id": 20465,
+          "name": "SMTH - Phoenix Nirvana",
+          "score": 25723,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 17055,
+      "start": 1724526000,
+      "end": 1724547734,
+      "target": 14300,
+      "winner": 9689,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 4275,
+          "chain": 1
+        },
+        {
+          "id": 9689,
+          "name": "Deja",
+          "score": 18575,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 16721,
+      "start": 1723917600,
+      "end": 1723967341,
+      "target": 14800,
+      "winner": 46442,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 6078,
+          "chain": 1
+        },
+        {
+          "id": 46442,
+          "name": "The Resolute",
+          "score": 20879,
+          "chain": 1
+        }
+      ]
+    },
+    {
+      "id": 16464,
+      "start": 1722715200,
+      "end": 1723111255,
+      "target": 1872,
+      "winner": 37426,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 2089,
+          "chain": 1
+        },
+        {
+          "id": 37426,
+          "name": "Monarch Zenith",
+          "score": 4056,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 16239,
+      "start": 1722110400,
+      "end": 1722189830,
+      "target": 14300,
+      "winner": 35507,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 15641,
+          "chain": 1
+        },
+        {
+          "id": 35507,
+          "name": "The Nest",
+          "score": 29941,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 15964,
+      "start": 1721498400,
+      "end": 1721595656,
+      "target": 16320,
+      "winner": 40992,
+      "factions": [
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 14880,
+          "chain": 1
+        },
+        {
+          "id": 40992,
+          "name": "Medic!!",
+          "score": 31283,
+          "chain": 0
+        }
+      ]
+    },
+    {
+      "id": 15911,
+      "start": 1720796400,
+      "end": 1720826425,
+      "target": 17400,
+      "winner": 19,
+      "factions": [
+        {
+          "id": 19,
+          "name": "39th Street Killers",
+          "score": 19828,
+          "chain": 0
+        },
+        {
+          "id": 9036,
+          "name": "The Black Pearl",
+          "score": 2420,
+          "chain": 1
+        }
+      ]
+    }
+  ],
+  "_metadata": {
+    "links": {
+      "prev": null,
+      "next": "https://api.torn.com/v2/faction/rankedwars?&limit=100&offset=100"
+    }
+  }
+}

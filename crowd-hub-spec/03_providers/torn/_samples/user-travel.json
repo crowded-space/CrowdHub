@@ -1,1 +1,9 @@
-{"_PASTE_REAL_SAMPLE_HERE": true}
+{
+  "travel": {
+    "destination": "Torn",
+    "method": "Airstrip",
+    "departed_at": 1794656527,
+    "arrival_at": 1794661867,
+    "time_left": 0
+  }
+}

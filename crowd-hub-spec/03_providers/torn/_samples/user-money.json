@@ -1,1 +1,22 @@
-{"_PASTE_REAL_SAMPLE_HERE": true}
+{
+  "money": {
+    "points": 0,
+    "wallet": 8530229,
+    "company": 0,
+    "vault": 0,
+    "cayman_bank": 0,
+    "city_bank": {
+      "amount": 1075200,
+      "profit": 75200,
+      "duration": 60,
+      "interest_rate": 45.76,
+      "invested_at": 1790185380,
+      "until": 1795369380
+    },
+    "faction": {
+      "money": 0,
+      "points": 0
+    },
+    "daily_networth": 236331439
+  }
+}
