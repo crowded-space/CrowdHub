@@ -6,11 +6,14 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -20,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -27,26 +31,45 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.crowdhub.core.alerts.AlertEngine
+import app.crowdhub.core.alerts.AlertTriggerMode
+import app.crowdhub.core.alerts.PollWorker
 import app.crowdhub.core.alerts.Scheduler
+import app.crowdhub.core.alerts.WatchModeService
+import app.crowdhub.core.network.Clock
+import app.crowdhub.core.settings.AppPreferences
+import app.crowdhub.core.settings.SettingsStore
 import app.crowdhub.core.ui.components.CrowCard
+import app.crowdhub.core.ui.components.formatRelativeAge
 import app.crowdhub.core.ui.theme.CrowColors
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReliabilityScreen(
     scheduler: Scheduler,
+    settingsStore: SettingsStore,
+    alertEngine: AlertEngine,
+    clock: Clock,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val prefs by settingsStore.preferencesFlow.collectAsStateWithLifecycle(AppPreferences())
     var exactAlarmsOk by remember { mutableStateOf(scheduler.canScheduleExactAlarms()) }
     var notificationsOk by remember { mutableStateOf(scheduler.hasNotificationPermission()) }
+    var syncingNow by remember { mutableStateOf(false) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         exactAlarmsOk = scheduler.canScheduleExactAlarms()
@@ -71,9 +94,72 @@ fun ReliabilityScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            CrowCard(borderColor = if (prefs.watchModeActive) CrowColors.Ok.copy(alpha = 0.5f) else CrowColors.Outline) {
+                Text("Background Sync Engine", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (prefs.lastBackgroundSyncEpochMs > 0L) {
+                        val age = formatRelativeAge(clock.nowEpochMs() - prefs.lastBackgroundSyncEpochMs)
+                        "${prefs.lastBackgroundSyncSummary.ifBlank { "Sync" }} · $age"
+                    } else {
+                        "Periodic 15-minute sync runs via WorkManager. Enable Watch Mode for 30s live polling."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CrowColors.TextMuted
+                )
+                Spacer(Modifier.height(8.dp))
+                ReliabilityToggleRow(
+                    label = "Watch Mode (30s foreground service)",
+                    checked = prefs.watchModeActive,
+                    testTag = "reliability_watch_switch"
+                ) { enable ->
+                    if (enable) WatchModeService.start(context) else WatchModeService.stop(context)
+                }
+                ReliabilityToggleRow(
+                    label = "Background stock snapshot sync",
+                    checked = prefs.backgroundStockSyncEnabled,
+                    testTag = "reliability_bg_stocks_switch"
+                ) { enable ->
+                    scope.launch { settingsStore.setBackgroundStockSync(enable) }
+                }
+                ReliabilityToggleRow(
+                    label = "Background flight ETA sync",
+                    checked = prefs.backgroundFlightSyncEnabled,
+                    testTag = "reliability_bg_flight_switch"
+                ) { enable ->
+                    scope.launch { settingsStore.setBackgroundFlightSync(enable) }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        if (!syncingNow) {
+                            syncingNow = true
+                            scope.launch {
+                                PollWorker.enqueue(context)
+                                runCatching {
+                                    alertEngine.runCycle(AlertTriggerMode.BACKGROUND)
+                                    settingsStore.recordSyncStatus(
+                                        clock.nowEpochMs(),
+                                        "Manual background sync completed"
+                                    )
+                                }
+                                syncingNow = false
+                            }
+                        }
+                    },
+                    enabled = !syncingNow,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reliability_sync_now_button")
+                ) {
+                    Text(if (syncingNow) "Syncing..." else "Run background sync now")
+                }
+            }
+
             CrowCard(borderColor = if (exactAlarmsOk) CrowColors.Ok.copy(alpha = 0.4f) else CrowColors.AccentD) {
                 Text("Exact Alarms", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
@@ -161,3 +247,27 @@ fun ReliabilityScreen(
         }
     }
 }
+
+@Composable
+private fun ReliabilityToggleRow(
+    label: String,
+    checked: Boolean,
+    testTag: String,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = CrowColors.Text, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.testTag(testTag)
+        )
+    }
+}
+

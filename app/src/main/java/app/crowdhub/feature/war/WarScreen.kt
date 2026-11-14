@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +28,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +47,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.crowdhub.core.alerts.WatchModeService
 import app.crowdhub.core.browser.BrowserNavigator
@@ -71,7 +75,9 @@ fun WarScreen(
     browserNavigator: BrowserNavigator,
     clock: Clock,
     onOpenAccount: (String) -> Unit,
-    onNavigateToBrowser: () -> Unit
+    onNavigateToBrowser: () -> Unit,
+    showTopBar: Boolean = true,
+    openFiltersRequest: Int = 0
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -87,6 +93,16 @@ fun WarScreen(
     var manualFactionInput by remember { mutableStateOf(prefs.manualWarFactionId) }
     var detailRow by remember { mutableStateOf<Pair<WarMemberRowModel, String?>?>(null) }
 
+    LaunchedEffect(openFiltersRequest) {
+        if (openFiltersRequest > 0) {
+            showFiltersSheet = true
+        }
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh(forceRefresh = false)
+    }
+
     LaunchedEffect(Unit) {
         while (true) {
             delay(30_000L)
@@ -96,35 +112,38 @@ fun WarScreen(
 
     Scaffold(
         containerColor = CrowColors.CrowBlack,
+        contentWindowInsets = if (showTopBar) ScaffoldDefaults.contentWindowInsets else WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = { Text("War") },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CrowColors.Surface),
-                actions = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "Watch",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (prefs.watchModeActive) CrowColors.Ok else CrowColors.TextMuted
-                        )
-                        Switch(
-                            checked = prefs.watchModeActive,
-                            onCheckedChange = { enable ->
-                                if (enable) WatchModeService.start(context) else WatchModeService.stop(context)
-                            }
-                        )
+            if (showTopBar) {
+                TopAppBar(
+                    title = { Text("War") },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = CrowColors.Surface),
+                    actions = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Watch",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (prefs.watchModeActive) CrowColors.Ok else CrowColors.TextMuted
+                            )
+                            Switch(
+                                checked = prefs.watchModeActive,
+                                onCheckedChange = { enable ->
+                                    if (enable) WatchModeService.start(context) else WatchModeService.stop(context)
+                                }
+                            )
+                        }
+                        IconButton(onClick = { showFiltersSheet = true }) {
+                            Icon(Icons.Outlined.FilterList, contentDescription = "Filters & sort")
+                        }
+                        IconButton(onClick = { viewModel.refresh(forceRefresh = true) }) {
+                            Icon(Icons.Outlined.Refresh, contentDescription = "Refresh war")
+                        }
                     }
-                    IconButton(onClick = { showFiltersSheet = true }) {
-                        Icon(Icons.Outlined.FilterList, contentDescription = "Filters & sort")
-                    }
-                    IconButton(onClick = { viewModel.refresh(forceRefresh = true) }) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "Refresh war")
-                    }
-                }
-            )
+                )
+            }
         }
     ) { innerPadding ->
         Column(

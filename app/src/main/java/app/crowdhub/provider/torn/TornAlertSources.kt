@@ -107,9 +107,9 @@ class TornTimerAlertSource(
             }
         }
 
-        if (prefs.alertsTravelEnabled) {
+        if (prefs.alertsTravelEnabled || prefs.backgroundFlightSyncEnabled) {
             val travelRes = api.getTravel(ctx.accountId, priority)
-            if (travelRes is ApiResult.Success) {
+            if (prefs.alertsTravelEnabled && travelRes is ApiResult.Success) {
                 val t = travelRes.data
                 val arrivalSec = t.arrivalEpochSec
                 if (t.isActivelyFlying && arrivalSec != null) {

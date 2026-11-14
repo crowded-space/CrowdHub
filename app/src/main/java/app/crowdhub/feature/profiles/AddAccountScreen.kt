@@ -39,20 +39,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.crowdhub.connector.ffscouter.FfConsentDialog
 import app.crowdhub.connector.ffscouter.FfDefaults
+import app.crowdhub.connector.ffscouter.FfKeyInfo
 import app.crowdhub.connector.ffscouter.FfRepository
 import app.crowdhub.core.browser.SessionMonitor
 import app.crowdhub.core.browser.WebProfileManager
 import app.crowdhub.core.browser.WebSessionState
 import app.crowdhub.core.db.ProviderAccountDao
-import app.crowdhub.core.network.ApiError
 import app.crowdhub.core.network.ApiResult
+import app.crowdhub.core.network.Clock
 import app.crowdhub.core.profile.CredentialValidationResult
 import app.crowdhub.core.profile.KeySaveOutcome
 import app.crowdhub.core.profile.ProfileRepository
@@ -64,6 +64,7 @@ import app.crowdhub.core.vault.SecretVault
 import app.crowdhub.core.vault.VaultResult
 import app.crowdhub.provider.ValidationResult
 import app.crowdhub.provider.torn.TornProvider
+import app.crowdhub.provider.torn.TornUrls
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +79,7 @@ fun AddAccountScreen(
     sessionMonitor: SessionMonitor,
     settingsStore: SettingsStore,
     ffRepository: FfRepository,
+    clock: Clock,
     onBack: () -> Unit,
     onAccountDeleted: () -> Unit
 ) {
@@ -94,8 +96,25 @@ fun AddAccountScreen(
 
     var maskedKey by remember { mutableStateOf("Loading...") }
     var hasWebCreds by remember { mutableStateOf(false) }
+    var ffKeyInfo by remember {
+        mutableStateOf(
+            FfKeyInfo(
+                hasCustomKey = false,
+                maskedCustomKey = "Not set",
+                hasTornFallback = false,
+                maskedTornKey = "Not set",
+                isEnabled = false,
+                consentAtMs = null
+            )
+        )
+    }
+
+    var isTestingTorn by remember { mutableStateOf(false) }
+    var tornTestMessage by remember { mutableStateOf<String?>(null) }
+    var tornTestIsError by remember { mutableStateOf(false) }
 
     var showReplaceDialog by remember { mutableStateOf(false) }
+    var isSavingTornKey by remember { mutableStateOf(false) }
     var newKeyInput by remember { mutableStateOf("") }
     var replaceError by remember { mutableStateOf<String?>(null) }
     var pendingDifferentPlayer by remember { mutableStateOf<KeySaveOutcome.DifferentPlayerWarning?>(null) }
@@ -105,23 +124,33 @@ fun AddAccountScreen(
     var webPassInput by remember { mutableStateOf("") }
 
     var showFfConsent by remember { mutableStateOf(false) }
+    var showFfKeyDialog by remember { mutableStateOf(false) }
+    var ffKeyInput by remember { mutableStateOf("") }
+    var ffKeyDialogError by remember { mutableStateOf<String?>(null) }
+    var isSavingFfKey by remember { mutableStateOf(false) }
+    var isTestingFf by remember { mutableStateOf(false) }
     var ffStatusMessage by remember { mutableStateOf<String?>(null) }
-    var ffNotRegisteredError by remember { mutableStateOf(false) }
+    var ffIsError by remember { mutableStateOf(false) }
     var showDisableFfConfirm by remember { mutableStateOf(false) }
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    LaunchedEffect(accountId, account?.lastValidatedAt) {
+    suspend fun reloadVaultSnapshot() {
         maskedKey = SecretVault.maskSecret(secretVault.get(SecretVault.apiKeyAlias(accountId)))
         hasWebCreds = secretVault.has(SecretVault.webUserAlias(accountId)) &&
             secretVault.has(SecretVault.webPassAlias(accountId))
+        ffKeyInfo = ffRepository.getKeyInfo(accountId)
+    }
+
+    LaunchedEffect(accountId, account?.lastValidatedAt, ffEnabled) {
+        reloadVaultSnapshot()
     }
 
     Scaffold(
         containerColor = CrowColors.CrowBlack,
         topBar = {
             TopAppBar(
-                title = { Text("Account") },
+                title = { Text("Account & API Manager") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CrowColors.Surface),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -140,53 +169,117 @@ fun AddAccountScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            CrowCard {
-                Text(
-                    text = acct?.displayName ?: "Torn Account",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = CrowColors.Text
-                )
-                Text(
-                    text = "Player ID: ${acct?.externalId ?: "—"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = CrowColors.TextMuted
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = "Torn API: ${acct?.status ?: "UNKNOWN"} (${acct?.accessLevel ?: "Limited"})",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (acct?.status == "VALID") CrowColors.Ok else CrowColors.Danger
-                )
-                Text(
-                    text = "Key: $maskedKey",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = CrowColors.TextMuted
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            newKeyInput = ""
-                            replaceError = null
-                            showReplaceDialog = true
-                        },
-                        modifier = Modifier.testTag("replace_key_button")
-                    ) {
-                        Text("Replace key")
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            scope.launch {
-                                profileRepository.removeKeyOnly(accountId)
-                                maskedKey = "Not set"
+            AccountSummaryCard(
+                account = acct,
+                ffKeyInfo = ffKeyInfo,
+                ffHasError = ffIsError
+            )
+
+            TornApiManagerCard(
+                account = acct,
+                maskedKey = maskedKey,
+                isTesting = isTestingTorn,
+                testMessage = tornTestMessage,
+                testIsError = tornTestIsError,
+                clock = clock,
+                onReplaceKey = {
+                    newKeyInput = ""
+                    replaceError = null
+                    showReplaceDialog = true
+                },
+                onTestKey = {
+                    scope.launch {
+                        isTestingTorn = true
+                        tornTestMessage = null
+                        val outcome = profileRepository.reverifyAccountKey(accountId) { id, secret ->
+                            when (val res = tornProvider.validateCredential(id, secret)) {
+                                is ValidationResult.Valid -> CredentialValidationResult(
+                                    res.externalId, res.displayName, res.accessLevel, null
+                                )
+                                is ValidationResult.Invalid -> CredentialValidationResult(
+                                    null, null, null, res.error
+                                )
                             }
                         }
-                    ) {
-                        Text("Remove key")
+                        when (outcome) {
+                            is KeySaveOutcome.Saved -> {
+                                tornTestIsError = false
+                                tornTestMessage = "Torn API key verified (${outcome.account.accessLevel ?: "Limited"})."
+                            }
+                            is KeySaveOutcome.Error -> {
+                                tornTestIsError = true
+                                tornTestMessage = outcome.message
+                            }
+                            is KeySaveOutcome.DifferentPlayerWarning -> Unit
+                        }
+                        reloadVaultSnapshot()
+                        isTestingTorn = false
+                    }
+                },
+                onRemoveKey = {
+                    scope.launch {
+                        profileRepository.removeKeyOnly(accountId)
+                        tornTestIsError = false
+                        tornTestMessage = "Torn API key removed."
+                        reloadVaultSnapshot()
+                    }
+                },
+                onOpenTornApiPage = {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TornUrls.API_KEY_PREFS)))
                     }
                 }
-            }
+            )
+
+            FfScouterApiManagerCard(
+                ffKeyInfo = ffKeyInfo,
+                isTesting = isTestingFf,
+                statusMessage = ffStatusMessage,
+                isError = ffIsError,
+                onSetOrReplaceKey = {
+                    ffKeyInput = ""
+                    ffKeyDialogError = null
+                    showFfKeyDialog = true
+                },
+                onTestConnection = {
+                    scope.launch {
+                        isTestingFf = true
+                        ffStatusMessage = null
+                        val ownId = account?.externalId?.toLongOrNull()
+                        when (val res = ffRepository.testConnection(accountId, ownId)) {
+                            is ApiResult.Success -> {
+                                ffIsError = false
+                                ffStatusMessage = "FFScouter connection verified."
+                            }
+                            is ApiResult.Failure -> {
+                                ffIsError = true
+                                ffStatusMessage = res.error.message
+                            }
+                        }
+                        reloadVaultSnapshot()
+                        isTestingFf = false
+                    }
+                },
+                onRemoveCustomKey = {
+                    scope.launch {
+                        ffRepository.removeCustomKey(accountId)
+                        ffIsError = false
+                        ffStatusMessage = if (ffKeyInfo.isEnabled && ffKeyInfo.hasTornFallback) {
+                            "Custom FFScouter key removed; now using Torn API key."
+                        } else {
+                            "Custom FFScouter key removed."
+                        }
+                        reloadVaultSnapshot()
+                    }
+                },
+                onEnable = { showFfConsent = true },
+                onDisable = { showDisableFfConfirm = true },
+                onOpenSite = {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(FfDefaults.SITE_URL)))
+                    }
+                }
+            )
 
             CrowCard {
                 Text(
@@ -277,57 +370,6 @@ fun AddAccountScreen(
                 }
             }
 
-            CrowCard {
-                Text(
-                    text = "FFScouter",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = CrowColors.Text
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = if (ffEnabled) "Enabled (consented)" else "Disabled",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (ffEnabled) CrowColors.Ok else CrowColors.TextMuted
-                )
-                if (ffStatusMessage != null) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = ffStatusMessage.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (ffNotRegisteredError) CrowColors.Danger else CrowColors.Ok
-                    )
-                }
-                if (ffNotRegisteredError) {
-                    Spacer(Modifier.height(6.dp))
-                    OutlinedButton(
-                        onClick = {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(FfDefaults.SITE_URL)))
-                            }
-                        }
-                    ) {
-                        Text("Open ffscouter.com")
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-                if (ffEnabled) {
-                    OutlinedButton(
-                        onClick = { showDisableFfConfirm = true },
-                        modifier = Modifier.testTag("disable_ff_button")
-                    ) {
-                        Text("Disable FFScouter")
-                    }
-                } else {
-                    Button(
-                        onClick = { showFfConsent = true },
-                        modifier = Modifier.testTag("enable_ff_button")
-                    ) {
-                        Text("Enable FFScouter")
-                    }
-                }
-            }
-
             CrowCard(borderColor = CrowColors.Danger.copy(alpha = 0.45f)) {
                 Text(
                     text = "Danger zone",
@@ -347,63 +389,54 @@ fun AddAccountScreen(
     }
 
     if (showReplaceDialog) {
-        AlertDialog(
-            onDismissRequest = { showReplaceDialog = false },
-            title = { Text("Replace API Key") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = newKeyInput,
-                        onValueChange = {
-                            newKeyInput = it
-                            replaceError = null
-                        },
-                        label = { Text("New Limited API key") },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation()
-                    )
-                    if (replaceError != null) {
-                        Text(replaceError.orEmpty(), color = CrowColors.Danger, style = MaterialTheme.typography.bodySmall)
-                    }
+        TornKeyReplaceDialog(
+            keyInput = newKeyInput,
+            error = replaceError,
+            isBusy = isSavingTornKey,
+            onKeyChange = {
+                newKeyInput = it
+                replaceError = null
+            },
+            onOpenTornApiPage = {
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TornUrls.API_KEY_PREFS)))
                 }
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val outcome = profileRepository.replaceAccountKey(
-                                accountId = accountId,
-                                rawKey = newKeyInput,
-                                confirmDifferentPlayerReset = false
-                            ) { id, secret ->
-                                when (val res = tornProvider.validateCredential(id, secret)) {
-                                    is ValidationResult.Valid -> CredentialValidationResult(
-                                        res.externalId, res.displayName, res.accessLevel, null
-                                    )
-                                    is ValidationResult.Invalid -> CredentialValidationResult(
-                                        null, null, null, res.error
-                                    )
-                                }
-                            }
-                            when (outcome) {
-                                is KeySaveOutcome.Saved -> {
-                                    maskedKey = SecretVault.maskSecret(newKeyInput.trim())
-                                    newKeyInput = ""
-                                    showReplaceDialog = false
-                                }
-                                is KeySaveOutcome.DifferentPlayerWarning -> {
-                                    pendingDifferentPlayer = outcome
-                                    showReplaceDialog = false
-                                }
-                                is KeySaveOutcome.Error -> replaceError = outcome.message
-                            }
+            onConfirm = {
+                scope.launch {
+                    isSavingTornKey = true
+                    val outcome = profileRepository.replaceAccountKey(
+                        accountId = accountId,
+                        rawKey = newKeyInput,
+                        confirmDifferentPlayerReset = false
+                    ) { id, secret ->
+                        when (val res = tornProvider.validateCredential(id, secret)) {
+                            is ValidationResult.Valid -> CredentialValidationResult(
+                                res.externalId, res.displayName, res.accessLevel, null
+                            )
+                            is ValidationResult.Invalid -> CredentialValidationResult(
+                                null, null, null, res.error
+                            )
                         }
                     }
-                ) { Text("Validate & Save") }
+                    when (outcome) {
+                        is KeySaveOutcome.Saved -> {
+                            newKeyInput = ""
+                            tornTestIsError = false
+                            tornTestMessage = "Torn API key updated and verified."
+                            showReplaceDialog = false
+                            reloadVaultSnapshot()
+                        }
+                        is KeySaveOutcome.DifferentPlayerWarning -> {
+                            pendingDifferentPlayer = outcome
+                            showReplaceDialog = false
+                        }
+                        is KeySaveOutcome.Error -> replaceError = outcome.message
+                    }
+                    isSavingTornKey = false
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { showReplaceDialog = false }) { Text("Cancel") }
-            }
+            onDismiss = { showReplaceDialog = false }
         )
     }
 
@@ -435,10 +468,12 @@ fun AddAccountScreen(
                                 }
                             }
                             if (outcome is KeySaveOutcome.Saved) {
-                                maskedKey = SecretVault.maskSecret(newKeyInput.trim())
+                                tornTestIsError = false
+                                tornTestMessage = "Torn API key updated and account reset."
                             }
                             newKeyInput = ""
                             pendingDifferentPlayer = null
+                            reloadVaultSnapshot()
                         }
                     }
                 ) { Text("Reset data for this account") }
@@ -446,6 +481,46 @@ fun AddAccountScreen(
             dismissButton = {
                 TextButton(onClick = { pendingDifferentPlayer = null }) { Text("Cancel") }
             }
+        )
+    }
+
+    if (showFfKeyDialog) {
+        FfApiKeyDialog(
+            hasExistingCustomKey = ffKeyInfo.hasCustomKey,
+            isAlreadyEnabled = ffKeyInfo.isEnabled,
+            keyInput = ffKeyInput,
+            error = ffKeyDialogError,
+            isBusy = isSavingFfKey,
+            onKeyChange = {
+                ffKeyInput = it
+                ffKeyDialogError = null
+            },
+            onOpenSite = {
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(FfDefaults.SITE_URL)))
+                }
+            },
+            onConfirm = {
+                scope.launch {
+                    isSavingFfKey = true
+                    ffKeyDialogError = null
+                    val ownId = account?.externalId?.toLongOrNull()
+                    when (val res = ffRepository.saveCustomKeyAndEnable(accountId, ownId, ffKeyInput)) {
+                        is ApiResult.Success -> {
+                            ffKeyInput = ""
+                            ffIsError = false
+                            ffStatusMessage = "Custom FFScouter API key verified and saved."
+                            showFfKeyDialog = false
+                            reloadVaultSnapshot()
+                        }
+                        is ApiResult.Failure -> {
+                            ffKeyDialogError = res.error.message
+                        }
+                    }
+                    isSavingFfKey = false
+                }
+            },
+            onDismiss = { showFfKeyDialog = false }
         )
     }
 
@@ -504,25 +579,33 @@ fun AddAccountScreen(
 
     if (showFfConsent) {
         FfConsentDialog(
+            hasExistingCustomKey = ffKeyInfo.hasCustomKey,
             onOpenSite = {
                 runCatching {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(FfDefaults.SITE_URL)))
                 }
             },
-            onConfirm = {
+            onConfirm = { optionalCustomKey ->
                 showFfConsent = false
                 scope.launch {
+                    isTestingFf = true
                     val ownId = account?.externalId?.toLongOrNull()
-                    when (val res = ffRepository.enableWithConsent(accountId, ownId)) {
+                    when (val res = ffRepository.enableWithConsent(accountId, ownId, optionalCustomKey)) {
                         is ApiResult.Success -> {
-                            ffNotRegisteredError = false
-                            ffStatusMessage = "FFScouter verified and enabled."
+                            ffIsError = false
+                            ffStatusMessage = if (optionalCustomKey != null) {
+                                "FFScouter enabled with your custom API key."
+                            } else {
+                                "FFScouter verified and enabled."
+                            }
                         }
                         is ApiResult.Failure -> {
-                            ffNotRegisteredError = res.error is ApiError.InvalidKey
+                            ffIsError = true
                             ffStatusMessage = res.error.message
                         }
                     }
+                    reloadVaultSnapshot()
+                    isTestingFf = false
                 }
             },
             onDismiss = { showFfConsent = false }
@@ -540,8 +623,9 @@ fun AddAccountScreen(
                         scope.launch {
                             ffRepository.disable(accountId)
                             ffStatusMessage = null
-                            ffNotRegisteredError = false
+                            ffIsError = false
                             showDisableFfConfirm = false
+                            reloadVaultSnapshot()
                         }
                     }
                 ) { Text("Disable") }
@@ -556,7 +640,7 @@ fun AddAccountScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete Account?") },
-            text = { Text("Deletes the encrypted API key, web session, userscripts, alerts, and cached data for this account.") },
+            text = { Text("Deletes the encrypted API keys, web session, userscripts, alerts, and cached data for this account.") },
             confirmButton = {
                 Button(
                     onClick = {

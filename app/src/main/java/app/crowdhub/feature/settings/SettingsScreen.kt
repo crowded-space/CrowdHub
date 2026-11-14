@@ -118,7 +118,7 @@ fun SettingsScreen(
 
             activeProfile.primaryAccount?.let { acct ->
                 CrowCard(modifier = Modifier.clickable { onOpenAccount(acct.id) }) {
-                    Text("Account", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text("Account & API Manager", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = "${acct.displayName ?: "Torn"} · Status: ${acct.status}",
@@ -126,7 +126,7 @@ fun SettingsScreen(
                         color = CrowColors.TextMuted
                     )
                     Text(
-                        text = "Manage API key, Web session, and FFScouter",
+                        text = "Manage Torn & FFScouter API keys, connection tests, and Web session",
                         style = MaterialTheme.typography.labelSmall,
                         color = CrowColors.SheenSoft
                     )
@@ -222,8 +222,15 @@ fun SettingsScreen(
             }
 
             CrowCard {
-                Text("Watch Mode & Browser", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("Watch Mode & Background Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(6.dp))
+                ToggleRow("Background stock market sync (15m)", prefs.backgroundStockSyncEnabled) {
+                    scope.launch { settingsStore.setBackgroundStockSync(it) }
+                }
+                ToggleRow("Background flight ETA sync (15m & Watch)", prefs.backgroundFlightSyncEnabled) {
+                    scope.launch { settingsStore.setBackgroundFlightSync(it) }
+                }
+                Spacer(Modifier.height(8.dp))
                 Text("Watch Mode auto-stop", style = MaterialTheme.typography.labelMedium, color = CrowColors.TextMuted)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(1, 2, 4, 6).forEach { hrs ->

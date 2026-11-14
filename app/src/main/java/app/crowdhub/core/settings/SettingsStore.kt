@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -47,7 +48,11 @@ data class AppPreferences(
     val ffLowThreshold: Double = 2.0,
     val ffHighThreshold: Double = 3.0,
     val manualWarFactionId: String = "",
-    val quickLinks: List<QuickLinkItem> = emptyList()
+    val quickLinks: List<QuickLinkItem> = emptyList(),
+    val backgroundStockSyncEnabled: Boolean = true,
+    val backgroundFlightSyncEnabled: Boolean = true,
+    val lastBackgroundSyncEpochMs: Long = 0L,
+    val lastBackgroundSyncSummary: String = ""
 )
 
 class SettingsStore(private val context: Context) {
@@ -76,6 +81,10 @@ class SettingsStore(private val context: Context) {
         val FF_HIGH_THRESHOLD = doublePreferencesKey("ff_high_threshold")
         val MANUAL_WAR_FACTION_ID = stringPreferencesKey("manual_war_faction_id")
         val QUICK_LINKS_JSON = stringPreferencesKey("quick_links_json")
+        val BG_STOCK_SYNC = booleanPreferencesKey("bg_stock_sync")
+        val BG_FLIGHT_SYNC = booleanPreferencesKey("bg_flight_sync")
+        val LAST_BG_SYNC_MS = longPreferencesKey("last_bg_sync_ms")
+        val LAST_BG_SYNC_SUMMARY = stringPreferencesKey("last_bg_sync_summary")
     }
 
     val preferencesFlow: Flow<AppPreferences> = context.dataStore.data.map { prefs ->
@@ -109,7 +118,11 @@ class SettingsStore(private val context: Context) {
             ffLowThreshold = prefs[Keys.FF_LOW_THRESHOLD] ?: 2.0,
             ffHighThreshold = prefs[Keys.FF_HIGH_THRESHOLD] ?: 3.0,
             manualWarFactionId = prefs[Keys.MANUAL_WAR_FACTION_ID] ?: "",
-            quickLinks = quickLinks
+            quickLinks = quickLinks,
+            backgroundStockSyncEnabled = prefs[Keys.BG_STOCK_SYNC] ?: true,
+            backgroundFlightSyncEnabled = prefs[Keys.BG_FLIGHT_SYNC] ?: true,
+            lastBackgroundSyncEpochMs = prefs[Keys.LAST_BG_SYNC_MS] ?: 0L,
+            lastBackgroundSyncSummary = prefs[Keys.LAST_BG_SYNC_SUMMARY] ?: ""
         )
     }
 
@@ -187,5 +200,20 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setQuickLinks(links: List<QuickLinkItem>) {
         context.dataStore.edit { it[Keys.QUICK_LINKS_JSON] = json.encodeToString(links) }
+    }
+
+    suspend fun setBackgroundStockSync(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.BG_STOCK_SYNC] = enabled }
+    }
+
+    suspend fun setBackgroundFlightSync(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.BG_FLIGHT_SYNC] = enabled }
+    }
+
+    suspend fun recordSyncStatus(epochMs: Long, summary: String) {
+        context.dataStore.edit {
+            it[Keys.LAST_BG_SYNC_MS] = epochMs
+            it[Keys.LAST_BG_SYNC_SUMMARY] = summary
+        }
     }
 }

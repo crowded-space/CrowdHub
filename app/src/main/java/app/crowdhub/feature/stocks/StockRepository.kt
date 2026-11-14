@@ -152,10 +152,13 @@ class StockRepository(
 
         override suspend fun collect(ctx: AlertContext): List<AlertCandidate> {
             val prefs = settingsStore.current()
-            if (!prefs.alertsStocksEnabled) return emptyList()
-
-            val watches = stockDao.getEnabledWatches(ctx.accountId)
-            if (watches.isEmpty()) return emptyList()
+            val watches = if (prefs.alertsStocksEnabled) {
+                stockDao.getEnabledWatches(ctx.accountId)
+            } else {
+                emptyList()
+            }
+            val shouldSyncMarket = prefs.backgroundStockSyncEnabled || watches.isNotEmpty()
+            if (!shouldSyncMarket) return emptyList()
 
             val priority = when (ctx.mode) {
                 AlertTriggerMode.FOREGROUND -> RequestPriority.USER
@@ -165,6 +168,7 @@ class StockRepository(
 
             val res = fetchStocksAndRecord(ctx.accountId, priority, forceRefresh = false)
             val stocks = (res as? ApiResult.Success)?.data ?: return emptyList()
+            if (!prefs.alertsStocksEnabled || watches.isEmpty()) return emptyList()
             val stocksById = stocks.associateBy { it.stockId }
 
             val now = ctx.nowEpochMs

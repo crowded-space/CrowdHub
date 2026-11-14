@@ -254,6 +254,187 @@ class TornApi(
         ) { raw -> TornMappers.mapFactionMembers(raw) }
     }
 
+    suspend fun getFactionBasic(
+        accountId: String,
+        factionId: Long? = null,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<TornFactionBasic> {
+        val v2Path = if (factionId != null && factionId > 0L) "faction/$factionId/basic" else "faction/basic"
+        val v2Res = fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = v2Path,
+            queryParams = emptyMap(),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionBasic(raw) }
+
+        if (v2Res is ApiResult.Success) return v2Res
+        val err = (v2Res as ApiResult.Failure).error
+        if (err !is ApiError.Unknown && err !is ApiError.Parse) return v2Res
+
+        val v1Path = if (factionId != null && factionId > 0L) "faction/$factionId" else "faction/"
+        return fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V1,
+            path = v1Path,
+            queryParams = mapOf("selections" to "basic"),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionBasic(raw) }
+    }
+
+    suspend fun getFactionChain(
+        accountId: String,
+        factionId: Long? = null,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<TornFactionChain> {
+        val v2Path = if (factionId != null && factionId > 0L) "faction/$factionId/chain" else "faction/chain"
+        return fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = v2Path,
+            queryParams = emptyMap(),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionChain(raw) }
+    }
+
+    suspend fun getFactionAttacks(
+        accountId: String,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<List<TornFactionAttack>> {
+        val v2Res = fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = "faction/attacks",
+            queryParams = emptyMap(),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionAttacks(raw) }
+
+        if (v2Res is ApiResult.Success) return v2Res
+        val err = (v2Res as ApiResult.Failure).error
+        if (err !is ApiError.Unknown && err !is ApiError.Parse) return v2Res
+
+        return fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V1,
+            path = "faction/",
+            queryParams = mapOf("selections" to "attacks"),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionAttacks(raw) }
+    }
+
+    suspend fun getFactionArmory(
+        accountId: String,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<List<TornArmoryItem>> {
+        val v2Res = fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = "faction/inventory",
+            queryParams = emptyMap(),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionArmory(raw) }
+
+        if (v2Res is ApiResult.Success && v2Res.data.isNotEmpty()) return v2Res
+        if (v2Res is ApiResult.Failure) {
+            val err = v2Res.error
+            if (err is ApiError.AccessLevel || err is ApiError.InvalidKey || err is ApiError.KeyPaused) {
+                return v2Res
+            }
+        }
+
+        val v1Res = fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V1,
+            path = "faction/",
+            queryParams = mapOf("selections" to "weapons,armor,medical,drugs,boosters,temporary,cesium"),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionArmory(raw) }
+
+        return if (v1Res is ApiResult.Success || v2Res !is ApiResult.Success) v1Res else v2Res
+    }
+
+    suspend fun getFactionBalance(
+        accountId: String,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<TornFactionBalance> {
+        val v2Res = fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = "faction/balance",
+            queryParams = emptyMap(),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionBalance(raw) }
+
+        if (v2Res is ApiResult.Success) return v2Res
+        val err = (v2Res as ApiResult.Failure).error
+        if (err !is ApiError.Unknown && err !is ApiError.Parse) return v2Res
+
+        return fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V1,
+            path = "faction/",
+            queryParams = mapOf("selections" to "currency"),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionBalance(raw) }
+    }
+
+    suspend fun getFactionCrimes(
+        accountId: String,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<List<TornOrganizedCrime>> {
+        return fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = "faction/crimes",
+            queryParams = emptyMap(),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapFactionCrimes(raw) }
+    }
+
+    suspend fun getUserOrganizedCrime(
+        accountId: String,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<TornOrganizedCrime?> {
+        val res = fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = "user/organizedcrime",
+            queryParams = emptyMap(),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapUserOrganizedCrime(raw) }
+        return when (res) {
+            is ApiResult.Success -> ApiResult.Success(
+                data = res.data.crime,
+                fetchedAtMs = res.fetchedAtMs,
+                fromCache = res.fromCache,
+                isStale = res.isStale
+            )
+            is ApiResult.Failure -> ApiResult.Failure(
+                error = res.error,
+                staleData = res.staleData?.crime,
+                staleFetchedAtMs = res.staleFetchedAtMs
+            )
+        }
+    }
+
     suspend fun getOtherProfile(
         accountId: String,
         targetPlayerId: Long,
@@ -292,6 +473,13 @@ class TornApi(
                 val id = paramId?.trim()?.takeIf { it.all(Char::isDigit) && it.isNotEmpty() } ?: "1"
                 Triple(ApiVersion.V2, "faction/$id/members", emptyMap())
             }
+            "faction/basic" -> Triple(ApiVersion.V2, "faction/basic", emptyMap())
+            "faction/chain" -> Triple(ApiVersion.V2, "faction/chain", emptyMap())
+            "faction/attacks" -> Triple(ApiVersion.V2, "faction/attacks", emptyMap())
+            "faction/inventory" -> Triple(ApiVersion.V2, "faction/inventory", emptyMap())
+            "faction/balance" -> Triple(ApiVersion.V2, "faction/balance", emptyMap())
+            "faction/crimes" -> Triple(ApiVersion.V2, "faction/crimes", emptyMap())
+            "user/organizedcrime" -> Triple(ApiVersion.V2, "user/organizedcrime", emptyMap())
             "user/{id}/profile" -> {
                 val id = paramId?.trim()?.takeIf { it.all(Char::isDigit) && it.isNotEmpty() } ?: "1"
                 Triple(ApiVersion.V2, "user/$id/profile", emptyMap())

@@ -72,6 +72,7 @@ class SecretVault(
 
     companion object {
         fun apiKeyAlias(accountId: String) = "acct:$accountId:api_key"
+        fun ffApiKeyAlias(accountId: String) = "acct:$accountId:ff_api_key"
         fun webUserAlias(accountId: String) = "acct:$accountId:web_user"
         fun webPassAlias(accountId: String) = "acct:$accountId:web_pass"
         fun accountPrefix(accountId: String) = "acct:$accountId:"

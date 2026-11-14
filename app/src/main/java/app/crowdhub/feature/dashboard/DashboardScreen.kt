@@ -128,6 +128,15 @@ fun DashboardScreen(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false }
                     ) {
+                        activeProfile.primaryAccount?.let { acct ->
+                            DropdownMenuItem(
+                                text = { Text("Account & API Manager") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onOpenAccount(acct.id)
+                                }
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text("Scripts") },
                             onClick = {

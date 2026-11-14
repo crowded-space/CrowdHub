@@ -11,6 +11,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -35,14 +37,39 @@ class FfApi(
     private val clock: Clock
 ) {
 
+    suspend fun resolveApiKey(accountId: String, overrideKey: String? = null): String? {
+        val candidate = overrideKey?.trim()?.takeIf { it.isNotEmpty() }
+            ?: vault.get(SecretVault.ffApiKeyAlias(accountId))?.trim()?.takeIf { it.isNotEmpty() }
+            ?: vault.get(SecretVault.apiKeyAlias(accountId))?.trim()?.takeIf { it.isNotEmpty() }
+        if (candidate != null) {
+            CrowLog.registerSecret(candidate)
+        }
+        return candidate
+    }
+
+    suspend fun verifyKey(
+        accountId: String,
+        ownPlayerId: Long?,
+        overrideKey: String? = null
+    ): ApiResult<List<FfStats>> {
+        val probeId = ownPlayerId?.takeIf { it > 0L } ?: PROBE_PLAYER_ID
+        return getStats(
+            accountId = accountId,
+            playerIds = listOf(probeId),
+            overrideKey = overrideKey
+        )
+    }
+
     suspend fun getStats(
         accountId: String,
-        playerIds: List<Long>
+        playerIds: List<Long>,
+        overrideKey: String? = null
     ): ApiResult<List<FfStats>> {
         if (playerIds.isEmpty()) return ApiResult.Success(emptyList(), clock.nowEpochMs())
-        val apiKey = vault.get(SecretVault.apiKeyAlias(accountId))
-            ?: return ApiResult.Failure(ApiError.InvalidKey("Missing Torn API key"))
-        CrowLog.registerSecret(apiKey)
+        val apiKey = resolveApiKey(accountId, overrideKey)
+            ?: return ApiResult.Failure(
+                ApiError.InvalidKey("Missing FFScouter or Torn API key")
+            )
 
         rateLimiter.tryAcquire()?.let { return ApiResult.Failure(it) }
 
@@ -56,11 +83,13 @@ class FfApi(
 
     suspend fun getTargets(
         accountId: String,
-        filters: FfTargetsFilterParams
+        filters: FfTargetsFilterParams,
+        overrideKey: String? = null
     ): ApiResult<List<FfTargetCandidate>> {
-        val apiKey = vault.get(SecretVault.apiKeyAlias(accountId))
-            ?: return ApiResult.Failure(ApiError.InvalidKey("Missing Torn API key"))
-        CrowLog.registerSecret(apiKey)
+        val apiKey = resolveApiKey(accountId, overrideKey)
+            ?: return ApiResult.Failure(
+                ApiError.InvalidKey("Missing FFScouter or Torn API key")
+            )
 
         rateLimiter.tryAcquire()?.let { return ApiResult.Failure(it) }
 
@@ -89,22 +118,30 @@ class FfApi(
         try {
             okHttpClient.newCall(req).execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
+                val serverError = extractErrorMessage(body)
                 when (resp.code) {
-                    401, 403 -> return@withContext ApiResult.Failure(
-                        ApiError.InvalidKey("Not registered at FFScouter")
-                    )
+                    400, 401, 403 -> {
+                        val msg = serverError?.takeIf { it.isNotBlank() }
+                            ?: "Not registered at FFScouter. Enter your FFScouter API key or register at ffscouter.com."
+                        return@withContext ApiResult.Failure(ApiError.InvalidKey(msg))
+                    }
                     429 -> {
                         rateLimiter.triggerBackoff()
-                        return@withContext ApiResult.Failure(ApiError.RateLimited("FFScouter rate limited"))
+                        return@withContext ApiResult.Failure(
+                            ApiError.RateLimited(serverError ?: "FFScouter rate limited")
+                        )
                     }
                     in 500..599 -> return@withContext ApiResult.Failure(
-                        ApiError.ProviderDown("FFScouter error ${resp.code}")
+                        ApiError.ProviderDown(serverError ?: "FFScouter error ${resp.code}")
                     )
                 }
                 if (!resp.isSuccessful) {
                     return@withContext ApiResult.Failure(
-                        ApiError.Unknown(resp.code, "FFScouter HTTP ${resp.code}")
+                        ApiError.Unknown(resp.code, serverError ?: "FFScouter HTTP ${resp.code}")
                     )
+                }
+                if (serverError != null) {
+                    return@withContext ApiResult.Failure(ApiError.InvalidKey(serverError))
                 }
                 val parsed = parser(body)
                 ApiResult.Success(parsed, clock.nowEpochMs())
@@ -121,11 +158,26 @@ class FfApi(
     private fun enc(value: String): String = URLEncoder.encode(value, "UTF-8")
 
     companion object {
+        private const val PROBE_PLAYER_ID = 1L
+
         private val json = Json {
             ignoreUnknownKeys = true
             isLenient = true
             coerceInputValues = true
             explicitNulls = false
+        }
+
+        internal fun extractErrorMessage(raw: String): String? {
+            if (raw.isBlank()) return null
+            val el = runCatching { json.parseToJsonElement(raw) }.getOrNull() ?: return null
+            val obj = el as? JsonObject ?: return null
+            if (obj["stats"] != null || obj["data"] != null || obj["targets"] != null) return null
+            val rawMsg = (obj["error"] as? JsonPrimitive)?.contentOrNull
+                ?: (obj["message"] as? JsonPrimitive)?.contentOrNull
+                ?: (obj["detail"] as? JsonPrimitive)?.contentOrNull
+                ?: return null
+            val clean = CrowLog.redact(rawMsg.trim())
+            return clean.takeIf { it.isNotEmpty() }
         }
 
         internal fun parseStatsResponse(raw: String, nowMs: Long): List<FfStats> {

@@ -13,10 +13,10 @@ data class EncryptedPayload(
     val ciphertext: ByteArray
 )
 
-class KeystoreCipher(
+open class KeystoreCipher(
     private val keyAlias: String = MASTER_KEY_ALIAS
 ) {
-    fun encrypt(plaintext: ByteArray): Result<EncryptedPayload> = runCatching {
+    open fun encrypt(plaintext: ByteArray): Result<EncryptedPayload> = runCatching {
         val secretKey = getOrCreateMasterKey()
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, secretKey)
@@ -24,7 +24,7 @@ class KeystoreCipher(
         EncryptedPayload(iv = cipher.iv, ciphertext = ciphertext)
     }
 
-    fun decrypt(iv: ByteArray, ciphertext: ByteArray): Result<ByteArray> = runCatching {
+    open fun decrypt(iv: ByteArray, ciphertext: ByteArray): Result<ByteArray> = runCatching {
         val secretKey = getExistingMasterKey()
             ?: error("Master key missing in AndroidKeyStore")
         val cipher = Cipher.getInstance(TRANSFORMATION)

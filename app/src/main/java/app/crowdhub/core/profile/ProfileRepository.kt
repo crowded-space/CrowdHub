@@ -216,6 +216,38 @@ class ProfileRepository(
         responseCache.invalidateAccount(accountId)
     }
 
+    suspend fun reverifyAccountKey(
+        accountId: String,
+        validator: suspend (accountId: String, secret: String) -> CredentialValidationResult
+    ): KeySaveOutcome {
+        val existing = accountDao.getById(accountId)
+            ?: return KeySaveOutcome.Error("Account not found")
+        val storedKey = vault.get(SecretVault.apiKeyAlias(accountId))?.trim()
+        if (storedKey.isNullOrEmpty()) {
+            accountDao.updateStatus(accountId, AccountStatus.INVALID.name)
+            return KeySaveOutcome.Error("No Torn API key saved for this account.")
+        }
+
+        val validation = validator(accountId, storedKey)
+        if (validation.error != null || validation.externalId == null) {
+            val apiError = validation.error
+            if (apiError is ApiError.InvalidKey || apiError is ApiError.AccessLevel) {
+                accountDao.updateStatus(accountId, AccountStatus.INVALID.name)
+            }
+            return KeySaveOutcome.Error(apiError?.message ?: "Validation failed")
+        }
+
+        val updated = existing.copy(
+            externalId = validation.externalId,
+            displayName = validation.displayName ?: existing.displayName,
+            status = AccountStatus.VALID.name,
+            accessLevel = validation.accessLevel ?: existing.accessLevel ?: "Limited",
+            lastValidatedAt = clock.nowEpochMs()
+        )
+        accountDao.upsert(updated)
+        return KeySaveOutcome.Saved(updated)
+    }
+
     suspend fun markAccountKeyStatus(accountId: String, newStatus: AccountStatus, reason: String) {
         val current = accountDao.getById(accountId) ?: return
         if (current.status == newStatus.name) return

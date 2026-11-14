@@ -238,42 +238,74 @@ class StakeoutManager(
 
         override suspend fun collect(ctx: AlertContext): List<AlertCandidate> {
             val prefs = settingsStore.current()
-            if (!prefs.alertsWarEnabled) return emptyList()
+            if (!prefs.alertsWarEnabled && !prefs.backgroundFlightSyncEnabled) return emptyList()
 
             return when (ctx.mode) {
                 AlertTriggerMode.BACKGROUND -> {
-                    // One-time "war started?" check every 15 min via rankedwars only
                     val ownFactionId = (tornApi.getOwnFactionId(ctx.accountId, RequestPriority.BACKGROUND) as? ApiResult.Success)?.data
-                        ?: return emptyList()
-                    val warsRes = tornApi.getRankedWars(ctx.accountId, ownFactionId, RequestPriority.BACKGROUND)
-                    val wars = (warsRes as? ApiResult.Success)?.data ?: return emptyList()
-                    val active = wars.firstOrNull { it.isActive } ?: return emptyList()
-                    listOf(
-                        AlertCandidate(
-                            dedupeKey = "war:started:${active.warId}:${ctx.accountId}",
-                            accountId = ctx.accountId,
-                            channelId = NotificationChannels.WAR,
-                            title = "Ranked war detected vs ${active.enemyFactionName}",
-                            body = "Enemy faction ID ${active.enemyFactionId}. Open War tab to monitor.",
-                            fireAtEpochMs = null,
-                            deepLink = "war"
-                        )
-                    )
+                    val candidates = mutableListOf<AlertCandidate>()
+                    var enemyFactionToSync: Long? = prefs.manualWarFactionId.trim().toLongOrNull()?.takeIf { it > 0L }
+
+                    if (ownFactionId != null) {
+                        val wars = (tornApi.getRankedWars(ctx.accountId, ownFactionId, RequestPriority.BACKGROUND) as? ApiResult.Success)?.data
+                            .orEmpty()
+                        val active = wars.firstOrNull { it.isActive }
+                        if (active != null) {
+                            if (enemyFactionToSync == null) {
+                                enemyFactionToSync = active.enemyFactionId
+                            }
+                            if (prefs.alertsWarEnabled) {
+                                candidates += AlertCandidate(
+                                    dedupeKey = "war:started:${active.warId}:${ctx.accountId}",
+                                    accountId = ctx.accountId,
+                                    channelId = NotificationChannels.WAR,
+                                    title = "Ranked war detected vs ${active.enemyFactionName}",
+                                    body = "Enemy faction ID ${active.enemyFactionId}. Open Faction War tab to monitor.",
+                                    fireAtEpochMs = null,
+                                    deepLink = "war"
+                                )
+                            }
+                        }
+
+                        if (prefs.backgroundFlightSyncEnabled) {
+                            val ownMembers = (tornApi.getFactionMembers(ctx.accountId, ownFactionId, RequestPriority.BACKGROUND) as? ApiResult.Success)?.data
+                            if (ownMembers != null) {
+                                candidates += processFactionMembers(ctx.accountId, ownFactionId, ownMembers)
+                            }
+                        }
+                    }
+
+                    if (prefs.backgroundFlightSyncEnabled && enemyFactionToSync != null && enemyFactionToSync != ownFactionId) {
+                        val enemyMembers = (tornApi.getFactionMembers(ctx.accountId, enemyFactionToSync, RequestPriority.BACKGROUND) as? ApiResult.Success)?.data
+                        if (enemyMembers != null) {
+                            candidates += processFactionMembers(ctx.accountId, enemyFactionToSync, enemyMembers)
+                        }
+                    }
+
+                    candidates
                 }
                 AlertTriggerMode.WATCH -> {
-                    val manualId = prefs.manualWarFactionId.trim().toLongOrNull()
-                    val enemyFactionId = if (manualId != null && manualId > 0L) {
-                        manualId
-                    } else {
-                        val ownId = (tornApi.getOwnFactionId(ctx.accountId, RequestPriority.WATCH) as? ApiResult.Success)?.data
-                            ?: return emptyList()
+                    val ownId = (tornApi.getOwnFactionId(ctx.accountId, RequestPriority.WATCH) as? ApiResult.Success)?.data
+                    val manualId = prefs.manualWarFactionId.trim().toLongOrNull()?.takeIf { it > 0L }
+                    val enemyFactionId = manualId ?: if (ownId != null) {
                         val wars = (tornApi.getRankedWars(ctx.accountId, ownId, RequestPriority.WATCH) as? ApiResult.Success)?.data
-                            ?: return emptyList()
-                        wars.firstOrNull { it.isActive }?.enemyFactionId ?: return emptyList()
+                        wars?.firstOrNull { it.isActive }?.enemyFactionId
+                    } else null
+
+                    val candidates = mutableListOf<AlertCandidate>()
+                    if (enemyFactionId != null) {
+                        val members = (tornApi.getFactionMembers(ctx.accountId, enemyFactionId, RequestPriority.WATCH) as? ApiResult.Success)?.data
+                        if (members != null) {
+                            candidates += processFactionMembers(ctx.accountId, enemyFactionId, members)
+                        }
                     }
-                    val membersRes = tornApi.getFactionMembers(ctx.accountId, enemyFactionId, RequestPriority.WATCH)
-                    val members = (membersRes as? ApiResult.Success)?.data ?: return emptyList()
-                    processFactionMembers(ctx.accountId, enemyFactionId, members)
+                    if (prefs.backgroundFlightSyncEnabled && ownId != null && ownId != enemyFactionId) {
+                        val ownMembers = (tornApi.getFactionMembers(ctx.accountId, ownId, RequestPriority.WATCH) as? ApiResult.Success)?.data
+                        if (ownMembers != null) {
+                            candidates += processFactionMembers(ctx.accountId, ownId, ownMembers)
+                        }
+                    }
+                    candidates
                 }
                 AlertTriggerMode.FOREGROUND -> emptyList()
             }

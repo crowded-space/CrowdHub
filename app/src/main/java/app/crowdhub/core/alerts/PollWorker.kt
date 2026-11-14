@@ -21,6 +21,10 @@ class PollWorker(
         return try {
             host.alertEngine.runCycle(AlertTriggerMode.BACKGROUND)
             host.runStockCleanup()
+            host.settingsStore.recordSyncStatus(
+                epochMs = host.clock.nowEpochMs(),
+                summary = "15m background sync completed"
+            )
             Result.success()
         } catch (t: Throwable) {
             CrowLog.w(message = "PollWorker cycle failed", throwable = t)

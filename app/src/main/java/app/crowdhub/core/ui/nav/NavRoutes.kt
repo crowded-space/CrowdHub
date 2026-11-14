@@ -16,6 +16,9 @@ sealed interface CrowRoute {
     data class StockDetail(val stockId: Int) : CrowRoute
 
     @Serializable
+    data class Faction(val initialTab: String? = null) : CrowRoute
+
+    @Serializable
     data object War : CrowRoute
 
     @Serializable

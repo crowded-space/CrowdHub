@@ -66,7 +66,8 @@ fun PrivacyScreen(onBack: () -> Unit) {
                 Text("Where Your Data Lives", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 listOf(
-                    "Torn API Key" to "Android Keystore AES-256-GCM encrypted in local database. Sent only to api.torn.com (and ffscouter.com if you explicitly opt in).",
+                    "Torn API Key" to "Android Keystore AES-256-GCM encrypted in local database. Sent only to api.torn.com (and ffscouter.com if you opt in without a separate FFScouter key).",
+                    "FFScouter API Key (optional)" to "Android Keystore AES-256-GCM encrypted in local database. Sent only to ffscouter.com when FFScouter is enabled.",
                     "Web Credentials (optional)" to "Encrypted on device only. Typed into torn.com login form on the login page only if enabled.",
                     "Stock & Flight History" to "Stored locally in Room on this device. No analytics, telemetry, crash reporting, or developer server.",
                     "Userscripts & KV Storage" to "Stored locally on device. Scripts cannot access raw Keystore keys unless you enable ###PDA-APIKEY### per script."

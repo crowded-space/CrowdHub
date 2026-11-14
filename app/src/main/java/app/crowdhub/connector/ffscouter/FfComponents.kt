@@ -6,15 +6,21 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -22,11 +28,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import app.crowdhub.core.ui.theme.CrowColors
 import app.crowdhub.core.ui.theme.TabularNumberStyle
@@ -108,29 +115,74 @@ fun formatCompactNumber(value: Long): String {
 
 @Composable
 fun FfConsentDialog(
+    hasExistingCustomKey: Boolean = false,
     onOpenSite: () -> Unit,
-    onConfirm: () -> Unit,
+    onConfirm: (customApiKey: String?) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var customKey by remember { mutableStateOf("") }
+    var showKey by remember { mutableStateOf(false) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Enable FFScouter?") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Before enabling FFScouter, note:")
-                Text("1. Your Torn API key will be sent to ffscouter.com.")
-                Text("2. FFScouter states it stores the key and restricts access to its service owners for debugging.")
-                Text("3. You must already be registered at ffscouter.com.")
-                Text("4. You can disable FFScouter anytime (clears cached estimates).")
-                Spacer(Modifier.height(4.dp))
-                OutlinedButton(onClick = onOpenSite) {
+                Text(
+                    "1. Requests to ffscouter.com use your FFScouter API key (or your Torn API key if no separate key is entered).",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "2. FFScouter states it stores submitted keys and restricts access to its service owners for debugging.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "3. Your key must be registered at ffscouter.com.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "4. You can edit, remove, or disable FFScouter anytime (clears cached estimates).",
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Spacer(Modifier.height(2.dp))
+                OutlinedTextField(
+                    value = customKey,
+                    onValueChange = { customKey = it },
+                    label = {
+                        Text(
+                            if (hasExistingCustomKey) "New FFScouter API key (optional)"
+                            else "FFScouter API key (optional)"
+                        )
+                    },
+                    placeholder = { Text("Leave blank to use Torn API key") },
+                    singleLine = true,
+                    visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { showKey = !showKey }) {
+                            Icon(
+                                imageVector = if (showKey) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                contentDescription = if (showKey) "Hide key" else "Show key"
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("ff_consent_key_input")
+                )
+
+                OutlinedButton(
+                    onClick = onOpenSite,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text("Open ffscouter.com")
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = { onConfirm(customKey.trim().takeIf { it.isNotEmpty() }) },
                 modifier = Modifier.testTag("ff_consent_confirm_button")
             ) {
                 Text("I understand, enable")

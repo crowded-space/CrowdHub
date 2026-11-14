@@ -32,6 +32,7 @@ import app.crowdhub.core.vault.KeystoreCipher
 import app.crowdhub.core.vault.SecretVault
 import app.crowdhub.feature.browser.AttackNavigator
 import app.crowdhub.feature.chain.TargetsViewModel
+import app.crowdhub.feature.faction.FactionRepository
 import app.crowdhub.feature.flight.FlightRepository
 import app.crowdhub.feature.stocks.StockRepository
 import app.crowdhub.feature.war.StakeoutManager
@@ -117,7 +118,7 @@ class AppContainer(context: Context) {
 
     val ffRateLimiter: FfRateLimiter = FfRateLimiter(clock)
     val ffApi: FfApi = FfApi(okHttpClient, ffRateLimiter, secretVault, clock)
-    val ffRepository: FfRepository = FfRepository(db.connectorLinkDao(), db.ffCacheDao(), ffApi, clock)
+    val ffRepository: FfRepository = FfRepository(db.connectorLinkDao(), db.ffCacheDao(), ffApi, secretVault, clock)
 
     val stockRepository: StockRepository = StockRepository(db.stockDao(), tornApi, settingsStore, clock)
     val flightRepository: FlightRepository = FlightRepository(db.warAndFlightDao(), clock)
@@ -126,6 +127,12 @@ class AppContainer(context: Context) {
         flightRepository = flightRepository,
         tornApi = tornApi,
         settingsStore = settingsStore,
+        clock = clock
+    )
+    val factionRepository: FactionRepository = FactionRepository(
+        tornApi = tornApi,
+        flightRepository = flightRepository,
+        stakeoutManager = stakeoutManager,
         clock = clock
     )
 

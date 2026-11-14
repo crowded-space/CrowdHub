@@ -129,7 +129,131 @@ data class TornFactionMember(
     val status: TornStatus,
     val lastActionStatus: String?,
     val lastActionRelative: String?,
-    val lastActionTimestampSec: Long?
+    val lastActionTimestampSec: Long?,
+    val position: String? = null,
+    val daysInFaction: Int? = null,
+    val isRevivable: Boolean? = null
+)
+
+data class TornFactionBasic(
+    val factionId: Long,
+    val name: String,
+    val tag: String?,
+    val respect: Long?,
+    val capacity: Int?,
+    val memberCount: Int?,
+    val bestChain: Long?,
+    val leaderId: Long?,
+    val coLeaderId: Long?,
+    val isEnlisted: Boolean?
+)
+
+data class TornFactionChain(
+    val id: Long?,
+    val current: Int,
+    val max: Int,
+    val timeoutSec: Int,
+    val modifier: Double,
+    val cooldownSec: Long,
+    val startEpochSec: Long?,
+    val endEpochSec: Long?
+) {
+    val isActive: Boolean get() = current > 0 && timeoutSec > 0 && cooldownSec <= 0L
+    val isInCooldown: Boolean get() = cooldownSec > 0L
+}
+
+data class TornFactionAttack(
+    val attackId: Long,
+    val code: String?,
+    val startedAtSec: Long?,
+    val endedAtSec: Long?,
+    val attackerId: Long?,
+    val attackerName: String,
+    val attackerFactionId: Long?,
+    val attackerFactionName: String?,
+    val defenderId: Long?,
+    val defenderName: String,
+    val defenderFactionId: Long?,
+    val defenderFactionName: String?,
+    val result: String,
+    val respectGain: Double,
+    val chainHit: Int,
+    val modifierFairFight: Double?,
+    val isInterrupted: Boolean,
+    val isStealthed: Boolean
+)
+
+enum class ArmoryCategory(val label: String) {
+    ALL("All"),
+    MEDICAL("Medical"),
+    DRUGS("Drugs"),
+    BOOSTERS("Boosters"),
+    WEAPONS("Weapons"),
+    ARMOR("Armor"),
+    TEMPORARY("Temporary"),
+    SUPPLIES("Supplies"),
+    OTHER("Other");
+
+    companion object {
+        fun fromRaw(raw: String?): ArmoryCategory {
+            val v = raw?.trim()?.lowercase().orEmpty()
+            return when {
+                v.contains("med") -> MEDICAL
+                v.contains("drug") -> DRUGS
+                v.contains("booster") || v.contains("alcohol") || v.contains("candy") || v.contains("energy drink") -> BOOSTERS
+                v.contains("weapon") || v.contains("melee") || v.contains("primary") || v.contains("secondary") -> WEAPONS
+                v.contains("armor") || v.contains("armour") -> ARMOR
+                v.contains("temp") -> TEMPORARY
+                v.contains("suppl") || v.contains("cesium") || v.contains("point") || v.contains("special") -> SUPPLIES
+                else -> OTHER
+            }
+        }
+    }
+}
+
+data class TornArmoryItem(
+    val itemId: Long,
+    val name: String,
+    val category: ArmoryCategory,
+    val rawType: String?,
+    val quantity: Int,
+    val available: Int,
+    val loaned: Int,
+    val marketPrice: Long?
+)
+
+data class TornFactionBalance(
+    val factionMoney: Long?,
+    val factionPoints: Long?,
+    val memberMoney: Long?,
+    val memberPoints: Long?
+)
+
+data class TornOcSlot(
+    val position: String,
+    val positionId: String?,
+    val userId: Long?,
+    val userName: String?,
+    val status: String,
+    val checkpointPassRate: Double?,
+    val itemRequirementName: String?,
+    val itemAvailable: Boolean?,
+    val outcome: String?,
+    val joinedAtSec: Long?,
+    val progress: Double?
+)
+
+data class TornOrganizedCrime(
+    val crimeId: Long,
+    val name: String,
+    val difficulty: Int?,
+    val status: String,
+    val createdAtSec: Long?,
+    val planningAtSec: Long?,
+    val readyAtSec: Long?,
+    val expiredAtSec: Long?,
+    val executedAtSec: Long?,
+    val slots: List<TornOcSlot>
 )
 
 data class TornRankedWar(
@@ -467,7 +591,10 @@ object TornMappers {
                 status = mapStatus(m.status),
                 lastActionStatus = m.lastAction?.status,
                 lastActionRelative = m.lastAction?.relative,
-                lastActionTimestampSec = m.lastAction?.timestamp
+                lastActionTimestampSec = m.lastAction?.timestamp,
+                position = m.position?.takeIf { it.isNotBlank() },
+                daysInFaction = m.daysInFaction,
+                isRevivable = m.isRevivable
             )
         }
     }
@@ -521,6 +648,303 @@ object TornMappers {
             factionId = factionId,
             factionName = factionName
         )
+    }
+
+    fun mapFactionBasic(rawJson: String): TornFactionBasic? {
+        val dto = runCatching { json.decodeFromString<TornFactionBasicResponseDto>(rawJson) }.getOrNull() ?: return null
+        val b = dto.basic
+        val id = b?.id ?: b?.legacyId ?: dto.id ?: dto.legacyId ?: return null
+        val name = b?.name ?: dto.name ?: "Faction $id"
+        return TornFactionBasic(
+            factionId = id,
+            name = name,
+            tag = (b?.tag ?: dto.tag)?.takeIf { it.isNotBlank() },
+            respect = b?.respect ?: dto.respect,
+            capacity = b?.capacity ?: dto.capacity,
+            memberCount = b?.membersCount ?: dto.membersCount ?: (dto.members as? JsonObject)?.size ?: (dto.members as? JsonArray)?.size,
+            bestChain = b?.bestChain ?: dto.bestChain,
+            leaderId = b?.leaderId ?: b?.leader ?: dto.leaderId ?: dto.leader,
+            coLeaderId = b?.coLeaderId ?: b?.coLeaderHyphenId ?: b?.coLeaderLegacy ?: dto.coLeaderId ?: dto.coLeaderHyphenId,
+            isEnlisted = b?.isEnlisted
+        )
+    }
+
+    fun mapFactionChain(rawJson: String): TornFactionChain? {
+        val dto = runCatching { json.decodeFromString<TornFactionChainResponseDto>(rawJson) }.getOrNull()
+        val chainDto = dto?.chain ?: runCatching { json.decodeFromString<TornChainBarDto>(rawJson) }.getOrNull()
+            ?: return null
+        return TornFactionChain(
+            id = chainDto.id,
+            current = (chainDto.current ?: 0).coerceAtLeast(0),
+            max = (chainDto.max ?: 0).coerceAtLeast(0),
+            timeoutSec = (chainDto.timeout ?: 0).coerceAtLeast(0),
+            modifier = chainDto.modifier ?: 1.0,
+            cooldownSec = (chainDto.cooldown ?: 0L).coerceAtLeast(0L),
+            startEpochSec = chainDto.start?.takeIf { it > 0L },
+            endEpochSec = chainDto.end?.takeIf { it > 0L }
+        )
+    }
+
+    fun mapFactionAttacks(rawJson: String): List<TornFactionAttack>? {
+        val dto = runCatching { json.decodeFromString<TornFactionAttacksResponseDto>(rawJson) }.getOrNull()
+            ?: return null
+        val attacksEl = dto.attacks ?: return null
+        val parsed = mutableListOf<Pair<Long?, TornFactionAttackDto>>()
+        when (attacksEl) {
+            is JsonArray -> {
+                for (el in attacksEl) {
+                    val item = runCatching { json.decodeFromJsonElement<TornFactionAttackDto>(el) }.getOrNull() ?: continue
+                    parsed += item.id to item
+                }
+            }
+            is JsonObject -> {
+                for ((key, el) in attacksEl.entries) {
+                    val item = runCatching { json.decodeFromJsonElement<TornFactionAttackDto>(el) }.getOrNull() ?: continue
+                    parsed += (item.id ?: key.toLongOrNull()) to item
+                }
+            }
+            else -> return emptyList()
+        }
+
+        return parsed.mapNotNull { (resolvedId, a) ->
+            val id = resolvedId ?: a.ended ?: a.timestampEnded ?: return@mapNotNull null
+            val attId = a.attacker?.id ?: a.attackerId?.takeIf { it > 0L }
+            val defId = a.defender?.id ?: a.defenderId?.takeIf { it > 0L }
+            val attName = a.attacker?.name?.takeIf { it.isNotBlank() }
+                ?: a.attackerName?.takeIf { it.isNotBlank() }
+                ?: if (a.isStealthed == true || attId == null) "Someone" else "Player $attId"
+            val defName = a.defender?.name?.takeIf { it.isNotBlank() }
+                ?: a.defenderName?.takeIf { it.isNotBlank() }
+                ?: if (defId != null) "Player $defId" else "Unknown"
+
+            TornFactionAttack(
+                attackId = id,
+                code = a.code,
+                startedAtSec = (a.started ?: a.timestampStarted)?.takeIf { it > 0L },
+                endedAtSec = (a.ended ?: a.timestampEnded ?: a.timestamp)?.takeIf { it > 0L },
+                attackerId = attId,
+                attackerName = attName,
+                attackerFactionId = (a.attacker?.faction?.id ?: a.attackerFactionId)?.takeIf { it > 0L },
+                attackerFactionName = (a.attacker?.faction?.name ?: a.attackerFactionName)?.takeIf { it.isNotBlank() },
+                defenderId = defId,
+                defenderName = defName,
+                defenderFactionId = (a.defender?.faction?.id ?: a.defenderFactionId)?.takeIf { it > 0L },
+                defenderFactionName = (a.defender?.faction?.name ?: a.defenderFactionName)?.takeIf { it.isNotBlank() },
+                result = a.result?.takeIf { it.isNotBlank() } ?: "Attack",
+                respectGain = a.respectGain ?: a.respect ?: 0.0,
+                chainHit = (a.chain ?: 0).coerceAtLeast(0),
+                modifierFairFight = a.modifiers?.fairFight,
+                isInterrupted = a.isInterrupted == true,
+                isStealthed = a.isStealthed == true
+            )
+        }.sortedByDescending { it.endedAtSec ?: it.startedAtSec ?: it.attackId }
+    }
+
+    fun mapFactionBalance(rawJson: String): TornFactionBalance? {
+        val dto = runCatching { json.decodeFromString<TornFactionBalanceResponseDto>(rawJson) }.getOrNull()
+            ?: return null
+        val payload = dto.balance
+        val factionMoney = payload?.faction?.money ?: payload?.money ?: dto.money
+        val factionPoints = payload?.faction?.points ?: payload?.points ?: dto.points
+        val memberMoney = payload?.member?.money
+        val memberPoints = payload?.member?.points
+        if (factionMoney == null && factionPoints == null && memberMoney == null && memberPoints == null) {
+            return null
+        }
+        return TornFactionBalance(
+            factionMoney = factionMoney,
+            factionPoints = factionPoints,
+            memberMoney = memberMoney,
+            memberPoints = memberPoints
+        )
+    }
+
+    fun mapFactionArmory(rawJson: String): List<TornArmoryItem>? {
+        val root = runCatching { json.parseToJsonElement(rawJson) }.getOrNull() as? JsonObject ?: return null
+        val out = mutableListOf<TornArmoryItem>()
+
+        // v2 keys: inventory / armory / items
+        val v2Key = listOf("inventory", "armory", "items").firstOrNull { root.containsKey(it) }
+        if (v2Key != null) {
+            val container = root[v2Key] ?: return emptyList()
+            parseArmoryElement(container, defaultCategory = null, out = out)
+            return out.sortedWith(compareBy({ it.category.ordinal }, { it.name.lowercase() }))
+        }
+
+        // v1 armory selections: weapons, armor, medical, drugs, boosters, temporary, cesium
+        val v1Categories = mapOf(
+            "medical" to ArmoryCategory.MEDICAL,
+            "drugs" to ArmoryCategory.DRUGS,
+            "boosters" to ArmoryCategory.BOOSTERS,
+            "weapons" to ArmoryCategory.WEAPONS,
+            "armor" to ArmoryCategory.ARMOR,
+            "temporary" to ArmoryCategory.TEMPORARY,
+            "cesium" to ArmoryCategory.SUPPLIES
+        )
+        var matchedAnyV1Key = false
+        for ((key, cat) in v1Categories) {
+            val el = root[key] ?: continue
+            matchedAnyV1Key = true
+            parseArmoryElement(el, defaultCategory = cat, out = out)
+        }
+        if (!matchedAnyV1Key) return null
+        return out.sortedWith(compareBy({ it.category.ordinal }, { it.name.lowercase() }))
+    }
+
+    private fun parseArmoryElement(
+        el: JsonElement,
+        defaultCategory: ArmoryCategory?,
+        out: MutableList<TornArmoryItem>
+    ) {
+        val items = mutableListOf<Pair<Long?, TornArmoryItemDto>>()
+        when (el) {
+            is JsonArray -> {
+                for (child in el) {
+                    val dto = runCatching { json.decodeFromJsonElement<TornArmoryItemDto>(child) }.getOrNull() ?: continue
+                    items += (dto.itemId ?: dto.id ?: dto.legacyId) to dto
+                }
+            }
+            is JsonObject -> {
+                for ((key, child) in el.entries) {
+                    val dto = runCatching { json.decodeFromJsonElement<TornArmoryItemDto>(child) }.getOrNull() ?: continue
+                    items += (dto.itemId ?: dto.id ?: dto.legacyId ?: key.toLongOrNull()) to dto
+                }
+            }
+            else -> {}
+        }
+        for ((resolvedId, dto) in items) {
+            val id = resolvedId ?: continue
+            val name = dto.name?.takeIf { it.isNotBlank() } ?: "Item #$id"
+            val qty = (dto.quantity ?: dto.available ?: 0).coerceAtLeast(0)
+            val loaned = (dto.loaned ?: 0).coerceAtLeast(0)
+            val available = (dto.available ?: (qty - loaned)).coerceAtLeast(0)
+            val rawCat = dto.category ?: dto.type
+            val category = defaultCategory ?: ArmoryCategory.fromRaw(rawCat)
+            out += TornArmoryItem(
+                itemId = id,
+                name = name,
+                category = category,
+                rawType = rawCat,
+                quantity = qty,
+                available = available,
+                loaned = loaned,
+                marketPrice = dto.marketPrice ?: dto.price
+            )
+        }
+    }
+
+    fun mapFactionCrimes(rawJson: String): List<TornOrganizedCrime>? {
+        val dto = runCatching { json.decodeFromString<TornFactionCrimesResponseDto>(rawJson) }.getOrNull()
+            ?: return null
+        val crimesEl = dto.crimes ?: return null
+        val parsed = mutableListOf<Pair<Long?, TornOrganizedCrimeDto>>()
+        when (crimesEl) {
+            is JsonArray -> {
+                for (el in crimesEl) {
+                    val crime = runCatching { json.decodeFromJsonElement<TornOrganizedCrimeDto>(el) }.getOrNull() ?: continue
+                    parsed += crime.id to crime
+                }
+            }
+            is JsonObject -> {
+                for ((key, el) in crimesEl.entries) {
+                    val crime = runCatching { json.decodeFromJsonElement<TornOrganizedCrimeDto>(el) }.getOrNull() ?: continue
+                    parsed += (crime.id ?: key.toLongOrNull()) to crime
+                }
+            }
+            else -> return emptyList()
+        }
+        return parsed.mapNotNull { (id, crime) -> mapSingleCrime(id, crime) }
+            .sortedWith(
+                compareBy<TornOrganizedCrime>(
+                    { crimeStatusSortOrder(it.status) },
+                    { it.readyAtSec ?: Long.MAX_VALUE },
+                    { -it.crimeId }
+                )
+            )
+    }
+
+    data class TornUserOcResult(val crime: TornOrganizedCrime?)
+
+    fun mapUserOrganizedCrime(rawJson: String): TornUserOcResult? {
+        val root = runCatching { json.parseToJsonElement(rawJson) }.getOrNull() as? JsonObject ?: return null
+        val key = listOf("organizedCrime", "organizedcrime", "crime").firstOrNull { root.containsKey(it) }
+            ?: return null
+        val el = root[key]
+        if (el == null || el !is JsonObject) {
+            return TornUserOcResult(null)
+        }
+        val crime = runCatching { json.decodeFromJsonElement<TornOrganizedCrimeDto>(el) }.getOrNull()
+            ?: return TornUserOcResult(null)
+        return TornUserOcResult(mapSingleCrime(crime.id, crime))
+    }
+
+    private fun mapSingleCrime(resolvedId: Long?, dto: TornOrganizedCrimeDto): TornOrganizedCrime? {
+        val crimeId = resolvedId ?: dto.id ?: return null
+        val slotsList = mutableListOf<TornOcSlot>()
+        when (val slotsEl = dto.slots) {
+            is JsonArray -> {
+                slotsEl.forEachIndexed { idx, el ->
+                    val slot = runCatching { json.decodeFromJsonElement<TornOcSlotDto>(el) }.getOrNull() ?: return@forEachIndexed
+                    slotsList += mapOcSlot(slot, idx + 1)
+                }
+            }
+            is JsonObject -> {
+                var idx = 1
+                for ((_, el) in slotsEl.entries) {
+                    val slot = runCatching { json.decodeFromJsonElement<TornOcSlotDto>(el) }.getOrNull() ?: continue
+                    slotsList += mapOcSlot(slot, idx++)
+                }
+            }
+            else -> {}
+        }
+        return TornOrganizedCrime(
+            crimeId = crimeId,
+            name = dto.name?.takeIf { it.isNotBlank() } ?: "Organized Crime #$crimeId",
+            difficulty = dto.difficulty,
+            status = dto.status?.takeIf { it.isNotBlank() } ?: "Unknown",
+            createdAtSec = dto.createdAt?.takeIf { it > 0L },
+            planningAtSec = dto.planningAt?.takeIf { it > 0L },
+            readyAtSec = dto.readyAt?.takeIf { it > 0L },
+            expiredAtSec = dto.expiredAt?.takeIf { it > 0L },
+            executedAtSec = dto.executedAt?.takeIf { it > 0L },
+            slots = slotsList
+        )
+    }
+
+    private fun mapOcSlot(slot: TornOcSlotDto, fallbackIndex: Int): TornOcSlot {
+        val uid = (slot.user?.id ?: slot.userId)?.takeIf { it > 0L }
+        val posInfoLabel = (slot.positionInfo as? JsonObject)
+            ?.get("label")?.jsonPrimitive?.content
+            ?.takeIf { it.isNotBlank() }
+        val positionLabel = slot.position?.takeIf { it.isNotBlank() }
+            ?: posInfoLabel
+            ?: slot.positionId?.takeIf { it.isNotBlank() }
+            ?: "Slot #$fallbackIndex"
+        val status = slot.status?.takeIf { it.isNotBlank() }
+            ?: if (uid != null) "Filled" else "Vacant"
+        val cpr = slot.checkpointPassRate ?: slot.successChance
+        return TornOcSlot(
+            position = positionLabel,
+            positionId = slot.positionId ?: slot.id,
+            userId = uid,
+            userName = slot.user?.name?.takeIf { it.isNotBlank() } ?: uid?.let { "Player $it" },
+            status = status,
+            checkpointPassRate = cpr,
+            itemRequirementName = slot.itemRequirement?.name?.takeIf { it.isNotBlank() },
+            itemAvailable = slot.itemRequirement?.isAvailable,
+            outcome = slot.user?.outcome?.takeIf { it.isNotBlank() },
+            joinedAtSec = slot.user?.joinedAt?.takeIf { it > 0L },
+            progress = slot.user?.progress
+        )
+    }
+
+    private fun crimeStatusSortOrder(status: String): Int = when (status.lowercase()) {
+        "ready" -> 0
+        "planning", "in progress" -> 1
+        "recruiting" -> 2
+        "successful", "completed" -> 3
+        "failure", "failed", "expired" -> 4
+        else -> 5
     }
 
     private fun stripHtml(input: String): String {

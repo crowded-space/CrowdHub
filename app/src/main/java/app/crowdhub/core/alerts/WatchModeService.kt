@@ -60,6 +60,10 @@ class WatchModeService : Service() {
                 while (isActive && host.clock.nowEpochMs() < stopAtMs) {
                     try {
                         host.alertEngine.runCycle(AlertTriggerMode.WATCH)
+                        host.settingsStore.recordSyncStatus(
+                            epochMs = host.clock.nowEpochMs(),
+                            summary = "Watch Mode 30s sync"
+                        )
                     } catch (t: Throwable) {
                         CrowLog.w(message = "WatchMode poll error", throwable = t)
                     }
@@ -126,7 +130,7 @@ class WatchModeService : Service() {
         NotificationCompat.Builder(this, NotificationChannels.WATCH_MODE)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(getString(R.string.watch_mode_active))
-            .setContentText("Checking alerts every 30s")
+            .setContentText(getString(R.string.watch_mode_subtitle))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openPi)
