@@ -1,0 +1,8 @@
+{
+  "name": "Crowd Hub",
+  "description": "Privacy-first native Android companion hub for Torn featuring local API rate limiting, stock charts and alerts, watch mode, hardened in-app browser with PDA-compatible userscripts, ranked war stakeout, flight ETA estimation, and chain target assist.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
