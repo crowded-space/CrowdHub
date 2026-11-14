@@ -225,6 +225,40 @@ data class TornStocksResponseDto(
 )
 
 @Serializable
+data class TornUserStockDividendDto(
+    val ready: JsonElement? = null,
+    val increment: Int? = null,
+    val progress: Int? = null,
+    val frequency: Int? = null
+)
+
+@Serializable
+data class TornUserStockTransactionDto(
+    val id: Long? = null,
+    val shares: Long? = null,
+    @SerialName("bought_price") val boughtPrice: Double? = null,
+    val price: Double? = null,
+    @SerialName("time_bought") val timeBought: Long? = null,
+    val timestamp: Long? = null
+)
+
+@Serializable
+data class TornUserStockItemDto(
+    @SerialName("stock_id") val stockId: Int? = null,
+    val id: Int? = null,
+    @SerialName("total_shares") val totalShares: Long? = null,
+    val shares: Long? = null,
+    val dividend: TornUserStockDividendDto? = null,
+    val bonus: TornUserStockDividendDto? = null,
+    val transactions: JsonElement? = null
+)
+
+@Serializable
+data class TornUserStocksResponseDto(
+    val stocks: JsonElement? = null
+)
+
+@Serializable
 data class TornLastActionDto(
     val status: String? = null,
     val relative: String? = null,

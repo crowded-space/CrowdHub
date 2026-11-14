@@ -55,8 +55,16 @@ fun StockDetailScreen(
     onBack: () -> Unit
 ) {
     val allWatches by viewModel.watches.collectAsStateWithLifecycle()
+    val portfolioState by viewModel.portfolioState.collectAsStateWithLifecycle()
     val stockWatches = remember(allWatches, stockId) { allWatches.filter { it.stockId == stockId } }
     val stock = viewModel.findStock(stockId)
+    val position = remember(portfolioState, stockId) {
+        (portfolioState as? PortfolioUiState.Content)
+            ?.summary
+            ?.positions
+            ?.firstOrNull { it.stock.stockId == stockId }
+            ?: viewModel.findPosition(stockId)
+    }
 
     var selectedRange by remember { mutableStateOf(ChartRange.H24) }
     var history by remember { mutableStateOf<List<StockPricePoint>>(emptyList()) }
@@ -139,6 +147,11 @@ fun StockDetailScreen(
                 Spacer(Modifier.height(10.dp))
                 PriceChart(points = history, modifier = Modifier.fillMaxWidth())
             }
+
+            StockPositionDetailCard(
+                stock = stock,
+                position = position
+            )
 
             CrowCard {
                 Text(

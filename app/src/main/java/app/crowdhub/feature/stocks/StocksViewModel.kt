@@ -14,15 +14,30 @@ import app.crowdhub.core.profile.AccountStatus
 import app.crowdhub.core.profile.ActiveProfileState
 import app.crowdhub.core.profile.ProfileRepository
 import app.crowdhub.provider.torn.TornStock
+import app.crowdhub.provider.torn.TornUserStock
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+enum class StockTab(val label: String) {
+    MARKET("Market"),
+    PORTFOLIO("Portfolio")
+}
+
 enum class StockSort(val label: String) {
     NAME("Name"),
     PRICE_DESC("Price"),
     CHANGE_24H("24h %")
+}
+
+enum class PortfolioSort(val label: String) {
+    VALUE_DESC("Value"),
+    PNL_DESC("P&L $"),
+    PNL_PCT_DESC("P&L %"),
+    NAME("Name")
 }
 
 sealed class StocksUiState {
@@ -37,6 +52,19 @@ sealed class StocksUiState {
     data class Error(val error: ApiError, val accountId: String?) : StocksUiState()
 }
 
+sealed class PortfolioUiState {
+    data object Loading : PortfolioUiState()
+    data class Content(
+        val summary: PortfolioSummary,
+        val visiblePositions: List<OwnedStockPosition>,
+        val fetchedAtMs: Long,
+        val isStale: Boolean,
+        val staleReason: String?
+    ) : PortfolioUiState()
+    data class Empty(val message: String) : PortfolioUiState()
+    data class Error(val error: ApiError, val accountId: String?) : PortfolioUiState()
+}
+
 class StocksViewModel(
     private val profileRepository: ProfileRepository,
     private val stockRepository: StockRepository,
@@ -47,11 +75,23 @@ class StocksViewModel(
     private val _uiState = MutableStateFlow<StocksUiState>(StocksUiState.Loading)
     val uiState: StateFlow<StocksUiState> = _uiState.asStateFlow()
 
+    private val _portfolioState = MutableStateFlow<PortfolioUiState>(PortfolioUiState.Loading)
+    val portfolioState: StateFlow<PortfolioUiState> = _portfolioState.asStateFlow()
+
+    private val _selectedTab = MutableStateFlow(StockTab.MARKET)
+    val selectedTab: StateFlow<StockTab> = _selectedTab.asStateFlow()
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private val _sortMode = MutableStateFlow(StockSort.NAME)
     val sortMode: StateFlow<StockSort> = _sortMode.asStateFlow()
+
+    private val _ownedOnlyFilter = MutableStateFlow(false)
+    val ownedOnlyFilter: StateFlow<Boolean> = _ownedOnlyFilter.asStateFlow()
+
+    private val _portfolioSort = MutableStateFlow(PortfolioSort.VALUE_DESC)
+    val portfolioSort: StateFlow<PortfolioSort> = _portfolioSort.asStateFlow()
 
     private val _watches = MutableStateFlow<List<StockWatchEntity>>(emptyList())
     val watches: StateFlow<List<StockWatchEntity>> = _watches.asStateFlow()
@@ -60,10 +100,16 @@ class StocksViewModel(
     val activeProfile: StateFlow<ActiveProfileState> = _activeProfile.asStateFlow()
 
     private var rawStocks: List<TornStock> = emptyList()
+    private var rawHoldings: List<TornUserStock> = emptyList()
+    private var hasLoadedHoldings: Boolean = false
     private var sparklines: Map<Int, List<StockPricePoint>> = emptyMap()
     private var lastFetchedAtMs: Long = 0L
     private var lastIsStale: Boolean = false
     private var lastStaleReason: String? = null
+    private var lastPortfolioFetchedAtMs: Long = 0L
+    private var lastPortfolioIsStale: Boolean = false
+    private var lastPortfolioStaleReason: String? = null
+    private var lastPortfolioError: ApiError? = null
 
     init {
         viewModelScope.launch {
@@ -72,6 +118,9 @@ class StocksViewModel(
                 _activeProfile.value = state
                 val acct = state.primaryAccount
                 if (acct != null && acct.id != prevId) {
+                    rawHoldings = emptyList()
+                    hasLoadedHoldings = false
+                    lastPortfolioError = null
                     launch {
                         stockRepository.observeWatches(acct.id).collect { w ->
                             _watches.value = w
@@ -84,6 +133,10 @@ class StocksViewModel(
         }
     }
 
+    fun setSelectedTab(tab: StockTab) {
+        _selectedTab.value = tab
+    }
+
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
         rebuildContent()
@@ -91,6 +144,16 @@ class StocksViewModel(
 
     fun setSortMode(sort: StockSort) {
         _sortMode.value = sort
+        rebuildContent()
+    }
+
+    fun setOwnedOnlyFilter(ownedOnly: Boolean) {
+        _ownedOnlyFilter.value = ownedOnly
+        rebuildContent()
+    }
+
+    fun setPortfolioSort(sort: PortfolioSort) {
+        _portfolioSort.value = sort
         rebuildContent()
     }
 
@@ -104,37 +167,85 @@ class StocksViewModel(
             if (rawStocks.isEmpty()) {
                 _uiState.value = StocksUiState.Loading
             }
+            if (!hasLoadedHoldings && lastPortfolioError == null) {
+                _portfolioState.value = PortfolioUiState.Loading
+            }
 
-            val res = stockRepository.fetchStocksAndRecord(
-                accountId = acct.id,
-                priority = if (forceRefresh) RequestPriority.USER else RequestPriority.WATCH,
-                forceRefresh = forceRefresh
-            )
+            val priority = if (forceRefresh) RequestPriority.USER else RequestPriority.WATCH
+            val (marketRes, holdingsRes) = coroutineScope {
+                val marketDeferred = async {
+                    stockRepository.fetchStocksAndRecord(
+                        accountId = acct.id,
+                        priority = priority,
+                        forceRefresh = forceRefresh
+                    )
+                }
+                val holdingsDeferred = async {
+                    stockRepository.fetchUserStocks(
+                        accountId = acct.id,
+                        priority = priority,
+                        forceRefresh = forceRefresh
+                    )
+                }
+                marketDeferred.await() to holdingsDeferred.await()
+            }
             sparklines = stockRepository.getAllRecent24hSnapshots()
 
-            when (res) {
+            when (holdingsRes) {
                 is ApiResult.Success -> {
-                    rawStocks = res.data
-                    lastFetchedAtMs = res.fetchedAtMs
+                    rawHoldings = holdingsRes.data
+                    hasLoadedHoldings = true
+                    lastPortfolioFetchedAtMs = holdingsRes.fetchedAtMs
+                    lastPortfolioIsStale = false
+                    lastPortfolioStaleReason = null
+                    lastPortfolioError = null
+                }
+                is ApiResult.Failure -> {
+                    val staleHoldings = holdingsRes.staleData
+                    if (staleHoldings != null) {
+                        rawHoldings = staleHoldings
+                        hasLoadedHoldings = true
+                        lastPortfolioFetchedAtMs = holdingsRes.staleFetchedAtMs ?: clock.nowEpochMs()
+                        lastPortfolioIsStale = true
+                        lastPortfolioStaleReason = holdingsRes.error.message
+                        lastPortfolioError = null
+                    } else if (hasLoadedHoldings) {
+                        lastPortfolioIsStale = true
+                        lastPortfolioStaleReason = holdingsRes.error.message
+                        lastPortfolioError = null
+                    } else {
+                        lastPortfolioError = holdingsRes.error
+                    }
+                }
+            }
+
+            when (marketRes) {
+                is ApiResult.Success -> {
+                    rawStocks = marketRes.data
+                    lastFetchedAtMs = marketRes.fetchedAtMs
                     lastIsStale = false
                     lastStaleReason = null
                     rebuildContent()
                     alertEngine.runCycle(AlertTriggerMode.FOREGROUND)
                 }
                 is ApiResult.Failure -> {
-                    val stale = res.staleData
+                    val stale = marketRes.staleData
                     if (!stale.isNullOrEmpty()) {
                         rawStocks = stale
-                        lastFetchedAtMs = res.staleFetchedAtMs ?: clock.nowEpochMs()
+                        lastFetchedAtMs = marketRes.staleFetchedAtMs ?: clock.nowEpochMs()
                         lastIsStale = true
-                        lastStaleReason = res.error.message
+                        lastStaleReason = marketRes.error.message
                         rebuildContent()
                     } else if (rawStocks.isNotEmpty()) {
                         lastIsStale = true
-                        lastStaleReason = res.error.message
+                        lastStaleReason = marketRes.error.message
                         rebuildContent()
                     } else {
-                        _uiState.value = StocksUiState.Error(res.error, acct.id)
+                        _uiState.value = StocksUiState.Error(marketRes.error, acct.id)
+                        _portfolioState.value = PortfolioUiState.Error(
+                            lastPortfolioError ?: marketRes.error,
+                            acct.id
+                        )
                     }
                 }
             }
@@ -142,6 +253,26 @@ class StocksViewModel(
     }
 
     fun findStock(stockId: Int): TornStock? = rawStocks.firstOrNull { it.stockId == stockId }
+
+    fun findPosition(stockId: Int): OwnedStockPosition? {
+        val stock = findStock(stockId) ?: return null
+        val holding = rawHoldings.firstOrNull { it.stockId == stockId && it.totalShares > 0L } ?: return null
+        val watchStockIds = _watches.value.filter { it.enabled }.map { it.stockId }.toSet()
+        val summary = StockPortfolioCalculator.buildSummary(
+            stocks = rawStocks,
+            holdings = rawHoldings,
+            sparklines = sparklines,
+            watchStockIds = watchStockIds
+        )
+        return summary.positions.firstOrNull { it.stock.stockId == stockId }
+            ?: StockPortfolioCalculator.buildPosition(
+                stock = stock,
+                holding = holding,
+                totalPortfolioValue = holding.totalShares.toDouble() * stock.currentPrice,
+                series = sparklines[stock.stockId].orEmpty(),
+                hasWatch = stock.stockId in watchStockIds
+            )
+    }
 
     suspend fun loadHistory(stockId: Int, range: ChartRange): List<StockPricePoint> =
         stockRepository.getHistory(stockId, range)
@@ -184,10 +315,18 @@ class StocksViewModel(
     private fun rebuildContent() {
         if (rawStocks.isEmpty()) return
         val watchStockIds = _watches.value.filter { it.enabled }.map { it.stockId }.toSet()
+        val holdingsById = rawHoldings.associateBy { it.stockId }
         val q = _searchQuery.value.trim().lowercase()
+        val ownedOnly = _ownedOnlyFilter.value
 
         val mapped = rawStocks
-            .filter { q.isEmpty() || it.name.lowercase().contains(q) || it.acronym.lowercase().contains(q) }
+            .filter { stock ->
+                val matchesQuery = q.isEmpty() ||
+                    stock.name.lowercase().contains(q) ||
+                    stock.acronym.lowercase().contains(q)
+                val matchesOwned = !ownedOnly || (holdingsById[stock.stockId]?.totalShares ?: 0L) > 0L
+                matchesQuery && matchesOwned
+            }
             .map { stock ->
                 val series = sparklines[stock.stockId].orEmpty()
                 val pct = if (series.size >= 2 && series.first().price > 0.0) {
@@ -199,7 +338,8 @@ class StocksViewModel(
                     stock = stock,
                     changePct24h = pct,
                     sparkline = series,
-                    hasWatch = stock.stockId in watchStockIds
+                    hasWatch = stock.stockId in watchStockIds,
+                    holding = holdingsById[stock.stockId]?.takeIf { it.totalShares > 0L }
                 )
             }
 
@@ -210,7 +350,8 @@ class StocksViewModel(
         }
 
         _uiState.value = if (sorted.isEmpty()) {
-            StocksUiState.Empty("No matching stocks found.")
+            val msg = if (ownedOnly && q.isEmpty()) "No owned stocks found." else "No matching stocks found."
+            StocksUiState.Empty(msg)
         } else {
             StocksUiState.Content(
                 items = sorted,
@@ -219,6 +360,53 @@ class StocksViewModel(
                 staleReason = lastStaleReason
             )
         }
+
+        rebuildPortfolioState(watchStockIds, q)
+    }
+
+    private fun rebuildPortfolioState(watchStockIds: Set<Int>, query: String) {
+        val acctId = _activeProfile.value.primaryAccount?.id
+        val err = lastPortfolioError
+        if (!hasLoadedHoldings && err != null) {
+            _portfolioState.value = PortfolioUiState.Error(err, acctId)
+            return
+        }
+        if (!hasLoadedHoldings) {
+            _portfolioState.value = PortfolioUiState.Loading
+            return
+        }
+
+        val summary = StockPortfolioCalculator.buildSummary(
+            stocks = rawStocks,
+            holdings = rawHoldings,
+            sparklines = sparklines,
+            watchStockIds = watchStockIds
+        )
+
+        if (summary.positions.isEmpty()) {
+            _portfolioState.value = PortfolioUiState.Empty("You do not own any Torn stocks yet.")
+            return
+        }
+
+        val filtered = summary.positions.filter { pos ->
+            query.isEmpty() ||
+                pos.stock.name.lowercase().contains(query) ||
+                pos.stock.acronym.lowercase().contains(query)
+        }
+        val sortedPositions = when (_portfolioSort.value) {
+            PortfolioSort.VALUE_DESC -> filtered.sortedByDescending { it.currentValue }
+            PortfolioSort.PNL_DESC -> filtered.sortedByDescending { it.unrealizedPnl ?: Double.NEGATIVE_INFINITY }
+            PortfolioSort.PNL_PCT_DESC -> filtered.sortedByDescending { it.unrealizedPnlPct ?: Double.NEGATIVE_INFINITY }
+            PortfolioSort.NAME -> filtered.sortedBy { it.stock.acronym }
+        }
+
+        _portfolioState.value = PortfolioUiState.Content(
+            summary = summary,
+            visiblePositions = sortedPositions,
+            fetchedAtMs = lastPortfolioFetchedAtMs.takeIf { it > 0L } ?: lastFetchedAtMs,
+            isStale = lastPortfolioIsStale,
+            staleReason = lastPortfolioStaleReason
+        )
     }
 
     class Factory(

@@ -14,6 +14,7 @@ import app.crowdhub.core.network.RequestPriority
 import app.crowdhub.core.settings.SettingsStore
 import app.crowdhub.provider.torn.TornApi
 import app.crowdhub.provider.torn.TornStock
+import app.crowdhub.provider.torn.TornUserStock
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -29,7 +30,8 @@ data class StockListItem(
     val stock: TornStock,
     val changePct24h: Double?,
     val sparkline: List<StockPricePoint>,
-    val hasWatch: Boolean
+    val hasWatch: Boolean,
+    val holding: TornUserStock? = null
 )
 
 class StockRepository(
@@ -56,6 +58,12 @@ class StockRepository(
         }
         return result
     }
+
+    suspend fun fetchUserStocks(
+        accountId: String,
+        priority: RequestPriority,
+        forceRefresh: Boolean
+    ): ApiResult<List<TornUserStock>> = tornApi.getUserStocks(accountId, priority, forceRefresh)
 
     suspend fun getHistory(stockId: Int, range: ChartRange): List<StockPricePoint> {
         val since = clock.nowEpochMs() - range.durationMs

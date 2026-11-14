@@ -83,6 +83,7 @@ fun DeveloperScreen(
             "user/travel",
             "user/money",
             "user/notifications",
+            "user/stocks",
             "torn/stocks",
             "faction/{id}/rankedwars",
             "faction/{id}/members",

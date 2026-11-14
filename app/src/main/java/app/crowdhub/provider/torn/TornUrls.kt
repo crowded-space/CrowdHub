@@ -12,6 +12,18 @@ object TornUrls {
 
     val ALLOWED_WEB_HOSTS = setOf("www.torn.com", "torn.com")
     val ALLOWED_ORIGIN_RULES = setOf("https://www.torn.com", "https://torn.com")
+    val ALLOWED_CHALLENGE_HOSTS = setOf(
+        "challenges.cloudflare.com",
+        "hcaptcha.com",
+        "newassets.hcaptcha.com",
+        "recaptcha.net",
+        "www.recaptcha.net"
+    )
+
+    fun isAllowedWebHost(host: String?): Boolean {
+        val h = host?.trim()?.lowercase()?.trimEnd('.') ?: return false
+        return ALLOWED_WEB_HOSTS.any { it.equals(h, ignoreCase = true) } || h.endsWith(".torn.com")
+    }
 
     fun profile(playerId: Long): String {
         require(playerId > 0L) { "Invalid playerId" }

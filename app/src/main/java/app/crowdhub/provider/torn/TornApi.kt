@@ -173,6 +173,36 @@ class TornApi(
         ) { raw -> TornMappers.mapStocks(raw) }
     }
 
+    suspend fun getUserStocks(
+        accountId: String,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<List<TornUserStock>> {
+        val v2Result = fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = "user/stocks",
+            queryParams = emptyMap(),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapUserStocks(raw) }
+
+        if (v2Result is ApiResult.Success) return v2Result
+
+        val err = (v2Result as ApiResult.Failure).error
+        val shouldFallbackToV1 = err is ApiError.Unknown || err is ApiError.Parse
+        if (!shouldFallbackToV1) return v2Result
+
+        return fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V1,
+            path = "user/",
+            queryParams = mapOf("selections" to "stocks"),
+            priority = priority,
+            forceRefresh = forceRefresh
+        ) { raw -> TornMappers.mapUserStocks(raw) }
+    }
+
     suspend fun getOwnFactionId(
         accountId: String,
         priority: RequestPriority,
@@ -252,6 +282,7 @@ class TornApi(
             "user/travel" -> Triple(ApiVersion.V2, "user/travel", emptyMap())
             "user/money" -> Triple(ApiVersion.V2, "user/money", emptyMap())
             "user/notifications" -> Triple(ApiVersion.V2, "user/notifications", emptyMap())
+            "user/stocks" -> Triple(ApiVersion.V2, "user/stocks", emptyMap())
             "torn/stocks" -> Triple(ApiVersion.V2, "torn/stocks", emptyMap())
             "faction/{id}/rankedwars" -> {
                 val id = paramId?.trim()?.takeIf { it.all(Char::isDigit) && it.isNotEmpty() } ?: "1"

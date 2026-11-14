@@ -8,15 +8,25 @@ sealed class UrlDecision {
     data class Block(val reason: String) : UrlDecision()
 }
 
-class UrlGuard(private val allowedHosts: Set<String>) {
-    fun evaluate(rawUrl: String?): UrlDecision {
+class UrlGuard(
+    private val allowedHosts: Set<String>,
+    private val challengeHosts: Set<String> = emptySet()
+) {
+    fun evaluate(rawUrl: String?, isMainFrame: Boolean = true): UrlDecision {
         if (rawUrl.isNullOrBlank()) return UrlDecision.Block("Empty URL")
-        val uri = runCatching { Uri.parse(rawUrl.trim()) }.getOrNull()
+        val trimmed = rawUrl.trim()
+        val uri = runCatching { Uri.parse(trimmed) }.getOrNull()
             ?: return UrlDecision.Block("Malformed URL")
 
         val scheme = uri.scheme?.lowercase() ?: return UrlDecision.Block("Missing scheme")
-        if (scheme == "intent" || scheme == "javascript" || scheme == "file" || scheme == "content" || scheme == "data") {
+        if (scheme == "intent" || scheme == "javascript" || scheme == "file" || scheme == "content") {
             return UrlDecision.Block("Scheme '$scheme' is blocked")
+        }
+        if (!isMainFrame && (scheme == "about" || scheme == "blob" || scheme == "data")) {
+            return UrlDecision.AllowInApp
+        }
+        if (scheme == "data") {
+            return UrlDecision.Block("Scheme 'data' is blocked")
         }
         if (scheme != "https") {
             if (scheme == "http") {
@@ -25,11 +35,25 @@ class UrlGuard(private val allowedHosts: Set<String>) {
             return UrlDecision.Block("Unsupported scheme '$scheme'")
         }
 
-        val host = uri.host?.lowercase() ?: return UrlDecision.Block("Missing host")
-        return if (allowedHosts.any { it.equals(host, ignoreCase = true) }) {
+        val host = uri.host?.lowercase()?.trimEnd('.') ?: return UrlDecision.Block("Missing host")
+
+        if (!isMainFrame) {
+            return UrlDecision.AllowInApp
+        }
+
+        val allowed = matchesDomainSet(host, allowedHosts) || matchesDomainSet(host, challengeHosts)
+        return if (allowed) {
             UrlDecision.AllowInApp
         } else {
-            UrlDecision.ConfirmExternal(rawUrl)
+            UrlDecision.ConfirmExternal(trimmed)
+        }
+    }
+
+    private fun matchesDomainSet(host: String, domainSet: Set<String>): Boolean {
+        return domainSet.any { rawPattern ->
+            val pattern = rawPattern.lowercase().trimStart('.')
+            val baseDomain = pattern.removePrefix("www.")
+            host == pattern || host == baseDomain || host.endsWith(".$baseDomain")
         }
     }
 }

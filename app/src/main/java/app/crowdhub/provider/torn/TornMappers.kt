@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -98,6 +99,27 @@ data class TornStock(
     val investors: Long? = null,
     val bonusPassive: Boolean? = null,
     val bonusFrequencyDays: Int? = null
+)
+
+data class TornStockTransaction(
+    val id: Long?,
+    val shares: Long,
+    val boughtPrice: Double,
+    val timeBoughtSec: Long?
+)
+
+data class TornStockDividend(
+    val ready: Boolean,
+    val increment: Int,
+    val progress: Int,
+    val frequency: Int
+)
+
+data class TornUserStock(
+    val stockId: Int,
+    val totalShares: Long,
+    val dividend: TornStockDividend?,
+    val transactions: List<TornStockTransaction>
 )
 
 data class TornFactionMember(
@@ -329,6 +351,91 @@ object TornMappers {
                 bonusFrequencyDays = benefit?.frequency
             )
         }
+    }
+
+    fun mapUserStocks(rawJson: String): List<TornUserStock>? {
+        val root = runCatching { json.parseToJsonElement(rawJson) }.getOrNull() as? JsonObject ?: return null
+        if (!root.containsKey("stocks")) return null
+        val stocksEl = root["stocks"] ?: return emptyList()
+
+        val rawItems = mutableListOf<Pair<Int?, TornUserStockItemDto>>()
+        when (stocksEl) {
+            is JsonArray -> {
+                for (el in stocksEl) {
+                    val item = runCatching { json.decodeFromJsonElement<TornUserStockItemDto>(el) }.getOrNull() ?: continue
+                    rawItems += (item.stockId ?: item.id) to item
+                }
+            }
+            is JsonObject -> {
+                for ((key, el) in stocksEl.entries) {
+                    val item = runCatching { json.decodeFromJsonElement<TornUserStockItemDto>(el) }.getOrNull() ?: continue
+                    rawItems += (item.stockId ?: item.id ?: key.toIntOrNull()) to item
+                }
+            }
+            else -> return emptyList()
+        }
+
+        return rawItems.mapNotNull { (resolvedId, item) ->
+            val stockId = resolvedId ?: return@mapNotNull null
+            val txs = parseTransactions(item.transactions)
+            val totalShares = item.totalShares ?: item.shares ?: txs.sumOf { it.shares }
+            if (totalShares <= 0L) return@mapNotNull null
+
+            val divDto = item.dividend ?: item.bonus
+            val dividend = divDto?.let {
+                TornStockDividend(
+                    ready = parseFlexibleBoolean(it.ready),
+                    increment = (it.increment ?: 0).coerceAtLeast(0),
+                    progress = (it.progress ?: 0).coerceAtLeast(0),
+                    frequency = (it.frequency ?: 0).coerceAtLeast(0)
+                )
+            }
+
+            TornUserStock(
+                stockId = stockId,
+                totalShares = totalShares,
+                dividend = dividend,
+                transactions = txs
+            )
+        }
+    }
+
+    private fun parseTransactions(el: JsonElement?): List<TornStockTransaction> {
+        if (el == null) return emptyList()
+        val parsed = mutableListOf<Pair<Long?, TornUserStockTransactionDto>>()
+        when (el) {
+            is JsonArray -> {
+                for (itemEl in el) {
+                    val tx = runCatching { json.decodeFromJsonElement<TornUserStockTransactionDto>(itemEl) }.getOrNull() ?: continue
+                    parsed += tx.id to tx
+                }
+            }
+            is JsonObject -> {
+                for ((key, itemEl) in el.entries) {
+                    val tx = runCatching { json.decodeFromJsonElement<TornUserStockTransactionDto>(itemEl) }.getOrNull() ?: continue
+                    parsed += (tx.id ?: key.toLongOrNull()) to tx
+                }
+            }
+            else -> {}
+        }
+        return parsed.mapNotNull { (resolvedId, tx) ->
+            val shares = tx.shares?.takeIf { it > 0L } ?: return@mapNotNull null
+            val boughtPrice = (tx.boughtPrice ?: tx.price)?.takeIf { it >= 0.0 } ?: return@mapNotNull null
+            val timeBought = (tx.timeBought ?: tx.timestamp)?.takeIf { it > 0L }
+            TornStockTransaction(
+                id = resolvedId,
+                shares = shares,
+                boughtPrice = boughtPrice,
+                timeBoughtSec = timeBought
+            )
+        }.sortedByDescending { it.timeBoughtSec ?: 0L }
+    }
+
+    private fun parseFlexibleBoolean(el: JsonElement?): Boolean {
+        val prim = runCatching { el?.jsonPrimitive }.getOrNull() ?: return false
+        prim.booleanOrNull?.let { return it }
+        prim.longOrNull?.let { return it > 0L }
+        return prim.content.equals("true", ignoreCase = true) || prim.content == "1"
     }
 
     fun mapFactionMembers(rawJson: String): List<TornFactionMember> {

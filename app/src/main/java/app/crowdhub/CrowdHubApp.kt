@@ -85,7 +85,10 @@ class AppContainer(context: Context) {
     )
 
     val webProfileManager: WebProfileManager = WebProfileManager()
-    val urlGuard: UrlGuard = UrlGuard(TornUrls.ALLOWED_WEB_HOSTS)
+    val urlGuard: UrlGuard = UrlGuard(
+        allowedHosts = TornUrls.ALLOWED_WEB_HOSTS,
+        challengeHosts = TornUrls.ALLOWED_CHALLENGE_HOSTS
+    )
     val sessionMonitor: SessionMonitor = SessionMonitor(TornUrls::isLoginUrl)
     val browserNavigator: BrowserNavigator = BrowserNavigator()
     val attackNavigator: AttackNavigator = AttackNavigator(browserNavigator, settingsStore)
