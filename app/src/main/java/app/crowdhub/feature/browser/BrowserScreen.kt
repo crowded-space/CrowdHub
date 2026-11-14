@@ -400,7 +400,7 @@ fun BrowserScreen(
                         userscriptEngine.injectForStage(view, accountId, url, RunAt.DOCUMENT_END)
                         userscriptEngine.injectForStage(view, accountId, url, RunAt.DOCUMENT_IDLE)
 
-                        if (TornUrls.isLoginUrl(url) && prefs.autoLoginEnabled) {
+                        if ((TornUrls.isLoginUrl(url) || TornUrls.isHomeUrl(url)) && prefs.autoLoginEnabled) {
                             scope.launch {
                                 val now = clock.nowEpochMs()
                                 loginAttempts.removeAll { now - it > 600_000L }
@@ -411,15 +411,19 @@ fun BrowserScreen(
                                 val user = secretVault.get(SecretVault.webUserAlias(accountId))
                                 val pass = secretVault.get(SecretVault.webPassAlias(accountId))
                                 if (!user.isNullOrBlank() && !pass.isNullOrEmpty()) {
-                                    loginAttempts.add(now)
                                     val js = TornSelectors.buildSafeLoginFillJs(
                                         username = user,
                                         password = pass,
                                         autoSubmit = prefs.autoLoginAutoSubmit
                                     )
                                     view.evaluateJavascript(js) { rawStatus ->
-                                        if (rawStatus?.contains("BLOCKED_CHALLENGE") == true) {
-                                            autoLoginHaltedReason = "Manual login required (captcha/2FA detected)."
+                                        when {
+                                            rawStatus?.contains("FILLED") == true -> {
+                                                loginAttempts.add(clock.nowEpochMs())
+                                            }
+                                            rawStatus?.contains("BLOCKED_CHALLENGE") == true -> {
+                                                autoLoginHaltedReason = "Manual login required (captcha/2FA detected)."
+                                            }
                                         }
                                     }
                                 }

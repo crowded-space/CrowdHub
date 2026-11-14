@@ -87,7 +87,9 @@ fun FlightDebugScreen(
                 Text("Plane Type Mapping", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Defaults are empty until you map observed status.plane_image_type values.",
+                    "Built-in defaults from API samples: " +
+                        FlightTable.defaultPlaneTypeMap.entries.joinToString(", ") { "${it.key} -> ${it.value.label}" } +
+                        ". Add overrides below if needed (e.g., private_jet -> Business).",
                     style = MaterialTheme.typography.bodySmall,
                     color = CrowColors.TextMuted
                 )

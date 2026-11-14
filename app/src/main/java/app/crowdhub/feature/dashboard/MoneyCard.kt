@@ -64,6 +64,28 @@ fun MoneyCard(
                 }
             }
         }
+        if (money.cityBankAmount != null || money.dailyNetworth != null) {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                money.cityBankAmount?.takeIf { it > 0L }?.let { bank ->
+                    Text(
+                        text = "City Bank: $${fmt.format(bank)}",
+                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
+                        color = CrowColors.TextMuted
+                    )
+                }
+                money.dailyNetworth?.takeIf { it > 0L }?.let { nw ->
+                    Text(
+                        text = "Networth: $${fmt.format(nw)}",
+                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
+                        color = CrowColors.TextMuted
+                    )
+                }
+            }
+        }
     }
 }
 

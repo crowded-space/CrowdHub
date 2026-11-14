@@ -108,8 +108,7 @@ class FlightRepository(
         val obsMaxMs = depart?.let { (landedDetectedAtMs - it.first).coerceAtLeast(0L) }
 
         val map = dao.getPlaneTypeMap().associateBy { it.apiValue }
-        val category = track.planeTypeApi?.let { map[it]?.category }?.let { PlaneCategory.fromRaw(it) }
-            ?: PlaneCategory.UNKNOWN
+        val category = track.planeTypeApi?.let { resolveCategory(map, it) } ?: PlaneCategory.UNKNOWN
 
         var inferredBook: Boolean? = null
         if (obsMinMs != null && obsMaxMs != null && category != PlaneCategory.UNKNOWN) {
@@ -158,8 +157,7 @@ class FlightRepository(
         val resolvedPlaneType = planeTypeApi ?: track?.planeTypeApi
 
         val map = dao.getPlaneTypeMap().associateBy { it.apiValue }
-        val category = resolvedPlaneType?.let { map[it]?.category }?.let { PlaneCategory.fromRaw(it) }
-            ?: PlaneCategory.UNKNOWN
+        val category = resolvedPlaneType?.let { resolveCategory(map, it) } ?: PlaneCategory.UNKNOWN
 
         val hasBook = validBookStatus(dao.getFlightProfile(playerId), nowMs)
 
@@ -183,6 +181,17 @@ class FlightRepository(
 
     suspend fun getObservationsForPlayer(playerId: Long): List<FlightObservationEntity> =
         dao.getObservationsForPlayer(playerId)
+
+    private fun resolveCategory(
+        userMap: Map<String, PlaneTypeMapEntity>,
+        apiValue: String
+    ): PlaneCategory {
+        val normKey = apiValue.trim()
+        val fromDb = (userMap[normKey] ?: userMap[normKey.lowercase()])
+            ?.let { PlaneCategory.fromRaw(it.category) }
+            ?.takeIf { it != PlaneCategory.UNKNOWN }
+        return fromDb ?: FlightTable.defaultCategoryForPlaneType(normKey)
+    }
 
     private fun validBookStatus(profile: PlayerFlightProfileEntity?, nowMs: Long): Boolean? {
         if (profile == null || profile.hasBook == null || profile.lastObservedAt == null) return null

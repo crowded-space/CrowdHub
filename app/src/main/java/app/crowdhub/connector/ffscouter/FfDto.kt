@@ -3,7 +3,6 @@ package app.crowdhub.connector.ffscouter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// VERIFY all FFScouter DTO fields against real _samples/ffscouter-*.json
 @Serializable
 data class FfStatItemDto(
     @SerialName("player_id") val playerId: Long? = null,
@@ -11,7 +10,8 @@ data class FfStatItemDto(
     @SerialName("fair_fight") val fairFight: Double? = null,
     @SerialName("bs_estimate") val bsEstimate: Long? = null,
     @SerialName("bs_estimate_human") val bsHuman: String? = null,
-    @SerialName("last_updated") val lastUpdated: Long? = null
+    @SerialName("last_updated") val lastUpdated: Long? = null,
+    @SerialName("bss_public") val bssPublic: Long? = null
 )
 
 @Serializable
@@ -30,7 +30,9 @@ data class FfTargetItemDto(
     @SerialName("fair_fight") val fairFight: Double? = null,
     @SerialName("bs_estimate") val bsEstimate: Long? = null,
     @SerialName("bs_estimate_human") val bsHuman: String? = null,
-    @SerialName("last_updated") val lastUpdated: Long? = null
+    @SerialName("last_updated") val lastUpdated: Long? = null,
+    @SerialName("bss_public_timestamp") val bssPublicTimestamp: Long? = null,
+    @SerialName("last_action") val lastAction: Long? = null
 )
 
 @Serializable
@@ -57,5 +59,6 @@ data class FfTargetCandidate(
     val fairFight: Double?,
     val bsEstimate: Long?,
     val bsHuman: String?,
-    val lastUpdatedSec: Long?
+    val lastUpdatedSec: Long?,
+    val lastActionSec: Long? = null
 )

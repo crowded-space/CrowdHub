@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,10 +98,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CrowdHubTheme {
-                var startRoute by mutableStateOf<CrowRoute?>(null)
+                var startRoute by remember { mutableStateOf<CrowRoute?>(null) }
 
                 LaunchedEffect(Unit) {
-                    val step = c.profileRepository.determineStartStep()
+                    val step = runCatching { c.profileRepository.determineStartStep() }
+                        .getOrDefault(OnboardingStep.WELCOME)
                     startRoute = if (step == OnboardingStep.DONE) CrowRoute.Dashboard else CrowRoute.Onboarding
                 }
 

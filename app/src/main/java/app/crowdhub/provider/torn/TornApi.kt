@@ -55,9 +55,9 @@ class TornApi(
         val barsProbe = executeDirect(
             accountId = accountId,
             apiKey = rawSecret,
-            version = ApiVersion.V1,
-            path = "user/",
-            queryParams = mapOf("selections" to "bars"),
+            version = ApiVersion.V2,
+            path = "user/bars",
+            queryParams = emptyMap(),
             priority = RequestPriority.USER,
             notifyOnKeyError = false
         )
@@ -90,9 +90,9 @@ class TornApi(
     ): ApiResult<TornBars> {
         return fetchAndMap(
             accountId = accountId,
-            version = ApiVersion.V1,
-            path = "user/",
-            queryParams = mapOf("selections" to "bars"),
+            version = ApiVersion.V2,
+            path = "user/bars",
+            queryParams = emptyMap(),
             priority = priority,
             forceRefresh = forceRefresh
         ) { raw -> TornMappers.mapBars(raw) }
@@ -105,9 +105,9 @@ class TornApi(
     ): ApiResult<TornCooldowns> {
         return fetchAndMap(
             accountId = accountId,
-            version = ApiVersion.V1,
-            path = "user/",
-            queryParams = mapOf("selections" to "cooldowns"),
+            version = ApiVersion.V2,
+            path = "user/cooldowns",
+            queryParams = emptyMap(),
             priority = priority,
             forceRefresh = forceRefresh
         ) { raw -> TornMappers.mapCooldowns(raw) }
@@ -120,9 +120,9 @@ class TornApi(
     ): ApiResult<TornTravel> {
         return fetchAndMap(
             accountId = accountId,
-            version = ApiVersion.V1,
-            path = "user/",
-            queryParams = mapOf("selections" to "travel"),
+            version = ApiVersion.V2,
+            path = "user/travel",
+            queryParams = emptyMap(),
             priority = priority,
             forceRefresh = forceRefresh
         ) { raw -> TornMappers.mapTravel(raw) }
@@ -247,9 +247,9 @@ class TornApi(
     ): ProbeResponse {
         val (version, path, query) = when (selection) {
             "user/basic" -> Triple(ApiVersion.V2, "user/basic", emptyMap<String, String>())
-            "user/bars" -> Triple(ApiVersion.V1, "user/", mapOf("selections" to "bars"))
-            "user/cooldowns" -> Triple(ApiVersion.V1, "user/", mapOf("selections" to "cooldowns"))
-            "user/travel" -> Triple(ApiVersion.V1, "user/", mapOf("selections" to "travel"))
+            "user/bars" -> Triple(ApiVersion.V2, "user/bars", emptyMap())
+            "user/cooldowns" -> Triple(ApiVersion.V2, "user/cooldowns", emptyMap())
+            "user/travel" -> Triple(ApiVersion.V2, "user/travel", emptyMap())
             "user/money" -> Triple(ApiVersion.V2, "user/money", emptyMap())
             "user/notifications" -> Triple(ApiVersion.V2, "user/notifications", emptyMap())
             "torn/stocks" -> Triple(ApiVersion.V2, "torn/stocks", emptyMap())

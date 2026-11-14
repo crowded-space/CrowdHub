@@ -17,10 +17,9 @@ Single-module Android Gradle project (`:app`) organized by strict layer boundari
 - `connector/ffscouter` — Opt-in FFScouter `get-stats` & `get-targets` connector with explicit consent gate, 10 req/min limiter, 50-ID batching, and 1h Room cache.
 - `feature/*` — Dashboard, Stocks (Canvas charts, alerts, 30d retention/downsampling), Ranked War Stakeout, Flight Estimator, Chain Target Assist (Hospital capture, FFScouter, My List), Browser, Userscripts, Profiles (Settings -> Advanced), and Settings/Privacy/About/Reliability/Developer Probe.
 
-## Verification Status (`VERIFY` Items)
+## Verification Status
 
-Because the specification `_samples/*.json` and `_samples/*.html` files contained placeholders, all Torn & FFScouter DTOs use defensive lenient parsing. Before shipping to production with live accounts, verify:
-- Torn v1 vs v2 field shapes & `Authorization: ApiKey` header in `TornApi` / `TornDto`
-- Torn Hospital page DOM selectors in `TornSelectors.kt`
-- API `plane_image_type` string mappings in Developer -> Flight Estimator Debug
-- Key validation flows via Settings -> Version (x7) -> Developer -> API Probe
+All Torn API v2 JSON DTOs, mappers, FFScouter DTOs (`get-stats` / `get-targets`), `plane_image_type` defaults (`airliner`, `light_aircraft`, `private_jet`), status descriptions, and captured Torn HTML DOM samples (`login-page.html` and `hospital-page-rows.html`) have been verified and unit-tested against `_samples/`. Remaining items requiring live verification on-device:
+- Live HTTP calls (`Authorization: ApiKey` header and key validation flows) via Settings -> Version (x7) -> Developer -> API Probe
+- Live WebView cookie persistence & manual QA flows per `crowd-hub-spec/07_checklists/qa-manual-test-plan.md`
+- Multi-poll flight observation tuning in Developer -> Flight Estimator Debug

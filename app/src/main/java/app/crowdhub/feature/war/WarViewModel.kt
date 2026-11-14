@@ -63,20 +63,105 @@ data class WarMemberRowModel(
     val stakeout: StakeoutEntity?
 )
 
+sealed class CurrentWarStatus {
+    data class Active(val war: TornRankedWar) : CurrentWarStatus()
+    data class Upcoming(val war: TornRankedWar) : CurrentWarStatus()
+    data class ManualStakeout(val factionId: Long, val factionName: String) : CurrentWarStatus()
+    data class NotInWar(val ownFactionId: Long?, val reason: String) : CurrentWarStatus()
+}
+
+data class HistoryFactionMembersState(
+    val isLoading: Boolean = false,
+    val rows: List<WarMemberRowModel> = emptyList(),
+    val totalMemberCount: Int = 0,
+    val errorMessage: String? = null,
+    val fetchedAtMs: Long? = null,
+    val isStale: Boolean = false
+)
+
+data class HistoryFactionGroup(
+    val enemyFactionId: Long,
+    val enemyFactionName: String,
+    val wars: List<TornRankedWar>,
+    val isExpanded: Boolean,
+    val membersState: HistoryFactionMembersState
+) {
+    val wins: Int get() = wars.count { it.winnerFactionId != null && it.winnerFactionId == it.ownFactionId }
+    val losses: Int get() = wars.count { it.winnerFactionId != null && it.winnerFactionId != it.ownFactionId }
+    val latestWar: TornRankedWar get() = wars.first()
+}
+
+data class OpponentWarHistory(
+    val enemyFactionId: Long,
+    val enemyFactionName: String,
+    val wars: List<TornRankedWar>
+)
+
 sealed class WarUiState {
     data object Loading : WarUiState()
-    data class NoActiveWar(val message: String, val accountId: String) : WarUiState()
     data class Content(
-        val war: TornRankedWar?,
-        val factionId: Long,
-        val factionName: String,
-        val rows: List<WarMemberRowModel>,
+        val status: CurrentWarStatus,
+        val activeRows: List<WarMemberRowModel>,
+        val totalActiveMemberCount: Int,
+        val historyGroups: List<HistoryFactionGroup>,
         val ffEnabled: Boolean,
         val fetchedAtMs: Long,
         val isStale: Boolean,
         val staleReason: String?
     ) : WarUiState()
     data class Error(val error: ApiError, val accountId: String?) : WarUiState()
+}
+
+internal fun resolveCurrentWarStatus(
+    wars: List<TornRankedWar>,
+    ownFactionId: Long?,
+    manualFactionId: Long?,
+    manualFactionName: String? = null
+): CurrentWarStatus {
+    if (manualFactionId != null && manualFactionId > 0L) {
+        val matchedName = manualFactionName?.takeIf { it.isNotBlank() }
+            ?: wars.firstOrNull { it.enemyFactionId == manualFactionId }?.enemyFactionName
+            ?: "Faction #$manualFactionId"
+        return CurrentWarStatus.ManualStakeout(manualFactionId, matchedName)
+    }
+
+    val activeWar = wars.firstOrNull { it.isActive && !it.isScheduled }
+    if (activeWar != null) {
+        return CurrentWarStatus.Active(activeWar)
+    }
+
+    val upcomingWar = wars.firstOrNull { it.isActive && it.isScheduled }
+    if (upcomingWar != null) {
+        return CurrentWarStatus.Upcoming(upcomingWar)
+    }
+
+    val reason = if (ownFactionId == null) {
+        "You are not currently in a faction."
+    } else {
+        "Your faction is not currently in an active ranked war."
+    }
+    return CurrentWarStatus.NotInWar(ownFactionId = ownFactionId, reason = reason)
+}
+
+internal fun groupEndedWarsByOpponent(wars: List<TornRankedWar>): List<OpponentWarHistory> {
+    val endedSorted = wars
+        .filter { !it.isActive }
+        .sortedByDescending { it.endEpochSec ?: it.startEpochSec ?: it.warId }
+
+    if (endedSorted.isEmpty()) return emptyList()
+
+    val grouped = LinkedHashMap<Long, MutableList<TornRankedWar>>()
+    for (war in endedSorted) {
+        grouped.getOrPut(war.enemyFactionId) { mutableListOf() }.add(war)
+    }
+
+    return grouped.map { (enemyId, enemyWars) ->
+        OpponentWarHistory(
+            enemyFactionId = enemyId,
+            enemyFactionName = enemyWars.first().enemyFactionName,
+            wars = enemyWars
+        )
+    }
 }
 
 class WarViewModel(
@@ -106,11 +191,19 @@ class WarViewModel(
     private val _activeProfile = MutableStateFlow(ActiveProfileState(null, null, emptyList()))
     val activeProfile: StateFlow<ActiveProfileState> = _activeProfile.asStateFlow()
 
-    private var rawMembers: List<TornFactionMember> = emptyList()
-    private var currentWar: TornRankedWar? = null
-    private var currentFactionId: Long? = null
-    private var currentFactionName: String = ""
-    private var ffMap: Map<Long, FfStats> = emptyMap()
+    private var cachedStatus: CurrentWarStatus? = null
+    private var activeRawMembers: List<TornFactionMember> = emptyList()
+    private var cachedWars: List<TornRankedWar> = emptyList()
+    private var ownFactionIdCache: Long? = null
+
+    private val expandedHistoryFactionIds = mutableSetOf<Long>()
+    private val historyRawMembersByFaction = mutableMapOf<Long, List<TornFactionMember>>()
+    private val historyLoadingFactions = mutableSetOf<Long>()
+    private val historyErrorsByFaction = mutableMapOf<Long, String?>()
+    private val historyFetchedAtByFaction = mutableMapOf<Long, Long>()
+    private val historyStaleByFaction = mutableSetOf<Long>()
+
+    private val ffMap = mutableMapOf<Long, FfStats>()
     private var ffEnabled: Boolean = false
     private var stakeoutsMap: Map<Long, StakeoutEntity> = emptyMap()
     private var lastFetchedAtMs: Long = 0L
@@ -124,6 +217,7 @@ class WarViewModel(
                 _activeProfile.value = state
                 val acct = state.primaryAccount
                 if (acct != null && acct.id != prevId) {
+                    resetAccountState()
                     launch {
                         stakeoutManager.observeStakeouts(acct.id).collect { list ->
                             stakeoutsMap = list.associateBy { it.playerId }
@@ -142,6 +236,24 @@ class WarViewModel(
         }
     }
 
+    private fun resetAccountState() {
+        cachedStatus = null
+        activeRawMembers = emptyList()
+        cachedWars = emptyList()
+        ownFactionIdCache = null
+        expandedHistoryFactionIds.clear()
+        historyRawMembersByFaction.clear()
+        historyLoadingFactions.clear()
+        historyErrorsByFaction.clear()
+        historyFetchedAtByFaction.clear()
+        historyStaleByFaction.clear()
+        ffMap.clear()
+        lastFetchedAtMs = 0L
+        lastIsStale = false
+        lastStaleReason = null
+        _uiState.value = WarUiState.Loading
+    }
+
     fun setManualFactionId(factionIdStr: String) {
         viewModelScope.launch {
             settingsStore.setManualWarFactionId(factionIdStr.trim())
@@ -153,6 +265,12 @@ class WarViewModel(
         val current = _quickFilters.value.toMutableSet()
         if (filter in current) current.remove(filter) else current.add(filter)
         _quickFilters.value = current
+        viewModelScope.launch { rebuildContent() }
+    }
+
+    fun clearAllFilters() {
+        _quickFilters.value = emptySet()
+        _extraFilters.value = WarExtraFilters()
         viewModelScope.launch { rebuildContent() }
     }
 
@@ -177,20 +295,78 @@ class WarViewModel(
         viewModelScope.launch { stakeoutManager.updateStakeoutPrefs(stakeout) }
     }
 
-    fun addToTargets(member: TornFactionMember) {
+    fun addToTargets(member: TornFactionMember, sourceFactionName: String? = null) {
         val acctId = _activeProfile.value.primaryAccount?.id ?: return
+        val label = sourceFactionName?.takeIf { it.isNotBlank() }
+            ?: when (val st = cachedStatus) {
+                is CurrentWarStatus.Active -> st.war.enemyFactionName
+                is CurrentWarStatus.Upcoming -> st.war.enemyFactionName
+                is CurrentWarStatus.ManualStakeout -> st.factionName
+                else -> "Enemy"
+            }
         viewModelScope.launch {
             targetDao.upsertTarget(
                 TargetEntity(
                     accountId = acctId,
                     playerId = member.playerId,
                     name = member.name,
-                    note = "From War (${currentFactionName.ifEmpty { "Enemy" }})",
+                    note = "From War ($label)",
                     source = "WAR",
                     addedAt = clock.nowEpochMs(),
                     watched = false
                 )
             )
+        }
+    }
+
+    fun toggleHistoryFaction(enemyFactionId: Long) {
+        if (enemyFactionId in expandedHistoryFactionIds) {
+            expandedHistoryFactionIds.remove(enemyFactionId)
+            viewModelScope.launch { rebuildContent() }
+            return
+        }
+        expandedHistoryFactionIds.add(enemyFactionId)
+        val alreadyLoaded = historyRawMembersByFaction.containsKey(enemyFactionId)
+        if (!alreadyLoaded) {
+            refreshHistoryFaction(enemyFactionId, forceRefresh = false)
+        } else {
+            viewModelScope.launch { rebuildContent() }
+        }
+    }
+
+    fun refreshHistoryFaction(enemyFactionId: Long, forceRefresh: Boolean = true) {
+        val acct = _activeProfile.value.primaryAccount ?: return
+        viewModelScope.launch {
+            historyLoadingFactions.add(enemyFactionId)
+            historyErrorsByFaction.remove(enemyFactionId)
+            rebuildContent()
+
+            val res = tornApi.getFactionMembers(acct.id, enemyFactionId, RequestPriority.USER, forceRefresh)
+            historyLoadingFactions.remove(enemyFactionId)
+
+            when (res) {
+                is ApiResult.Success -> {
+                    historyRawMembersByFaction[enemyFactionId] = res.data
+                    historyFetchedAtByFaction[enemyFactionId] = res.fetchedAtMs
+                    historyStaleByFaction.remove(enemyFactionId)
+                    historyErrorsByFaction.remove(enemyFactionId)
+                    fetchMissingFfStats(acct.id, res.data)
+                }
+                is ApiResult.Failure -> {
+                    val stale = res.staleData
+                    if (!stale.isNullOrEmpty()) {
+                        historyRawMembersByFaction[enemyFactionId] = stale
+                        historyFetchedAtByFaction[enemyFactionId] = res.staleFetchedAtMs ?: clock.nowEpochMs()
+                        historyStaleByFaction.add(enemyFactionId)
+                        historyErrorsByFaction.remove(enemyFactionId)
+                    } else if (historyRawMembersByFaction[enemyFactionId].isNullOrEmpty()) {
+                        historyErrorsByFaction[enemyFactionId] = res.error.message
+                    } else {
+                        historyStaleByFaction.add(enemyFactionId)
+                    }
+                }
+            }
+            rebuildContent()
         }
     }
 
@@ -201,55 +377,99 @@ class WarViewModel(
             if (state.accountStatus == AccountStatus.INVALID || state.accountStatus == AccountStatus.PAUSED) {
                 return@launch
             }
-            if (rawMembers.isEmpty()) {
+            if (cachedStatus == null) {
                 _uiState.value = WarUiState.Loading
             }
 
             val prefs: AppPreferences = settingsStore.current()
             val priority = if (prefs.watchModeActive) RequestPriority.WATCH else RequestPriority.USER
+            val manualId = prefs.manualWarFactionId.trim().toLongOrNull()?.takeIf { it > 0L }
 
-            val manualId = prefs.manualWarFactionId.trim().toLongOrNull()
-            var war: TornRankedWar? = null
-            var targetFactionId: Long? = manualId?.takeIf { it > 0L }
-            var targetFactionName = targetFactionId?.let { "Faction #$it" } ?: ""
+            val ownFactionRes = tornApi.getOwnFactionId(acct.id, priority, forceRefresh)
+            var staleNotice: String? = null
+            var anyStale = false
+            var latestFetchMs = clock.nowEpochMs()
 
-            if (targetFactionId == null) {
-                val ownFactionRes = tornApi.getOwnFactionId(acct.id, priority, forceRefresh)
-                val ownFactionId = ownFactionRes.getOrNull()
-                if (ownFactionId == null) {
-                    val err = (ownFactionRes as? ApiResult.Failure)?.error
-                        ?: ApiError.Unknown(null, "You are not in a faction")
-                    if (rawMembers.isEmpty()) {
-                        _uiState.value = WarUiState.NoActiveWar(err.message, acct.id)
+            when (ownFactionRes) {
+                is ApiResult.Success -> {
+                    ownFactionIdCache = ownFactionRes.data
+                    latestFetchMs = ownFactionRes.fetchedAtMs
+                }
+                is ApiResult.Failure -> {
+                    if (ownFactionRes.staleData != null) {
+                        ownFactionIdCache = ownFactionRes.staleData
+                        anyStale = true
+                        staleNotice = ownFactionRes.error.message
+                    } else if (manualId == null && cachedStatus == null) {
+                        _uiState.value = WarUiState.Error(ownFactionRes.error, acct.id)
                         return@launch
-                    }
-                } else {
-                    val warsRes = tornApi.getRankedWars(acct.id, ownFactionId, priority, forceRefresh)
-                    val wars = warsRes.getOrNull().orEmpty()
-                    war = wars.firstOrNull { it.isActive } ?: wars.firstOrNull()
-                    if (war != null) {
-                        targetFactionId = war.enemyFactionId
-                        targetFactionName = war.enemyFactionName
-                    } else if (rawMembers.isEmpty()) {
-                        _uiState.value = WarUiState.NoActiveWar("No active ranked war found", acct.id)
-                        return@launch
+                    } else {
+                        anyStale = true
+                        staleNotice = ownFactionRes.error.message
                     }
                 }
             }
 
-            val fid = targetFactionId ?: return@launch
-            val membersRes = tornApi.getFactionMembers(acct.id, fid, priority, forceRefresh)
-            when (membersRes) {
-                is ApiResult.Success -> {
-                    currentWar = war
-                    currentFactionId = fid
-                    currentFactionName = targetFactionName
-                    rawMembers = membersRes.data
-                    lastFetchedAtMs = membersRes.fetchedAtMs
-                    lastIsStale = false
-                    lastStaleReason = null
+            val ownFactionId = ownFactionIdCache
+            if (ownFactionId != null) {
+                val warsRes = tornApi.getRankedWars(acct.id, ownFactionId, priority, forceRefresh)
+                when (warsRes) {
+                    is ApiResult.Success -> {
+                        cachedWars = warsRes.data
+                        latestFetchMs = warsRes.fetchedAtMs
+                    }
+                    is ApiResult.Failure -> {
+                        val staleWars = warsRes.staleData
+                        if (staleWars != null) {
+                            cachedWars = staleWars
+                            anyStale = true
+                            staleNotice = warsRes.error.message
+                        } else if (manualId == null && cachedStatus == null) {
+                            _uiState.value = WarUiState.Error(warsRes.error, acct.id)
+                            return@launch
+                        } else {
+                            anyStale = true
+                            staleNotice = warsRes.error.message
+                        }
+                    }
+                }
+            } else {
+                cachedWars = emptyList()
+            }
 
-                    val candidates = stakeoutManager.processFactionMembers(acct.id, fid, rawMembers)
+            val resolvedStatus = resolveCurrentWarStatus(
+                wars = cachedWars,
+                ownFactionId = ownFactionId,
+                manualFactionId = manualId
+            )
+
+            val activeTargetFactionId = when (resolvedStatus) {
+                is CurrentWarStatus.Active -> resolvedStatus.war.enemyFactionId
+                is CurrentWarStatus.Upcoming -> resolvedStatus.war.enemyFactionId
+                is CurrentWarStatus.ManualStakeout -> resolvedStatus.factionId
+                is CurrentWarStatus.NotInWar -> null
+            }
+
+            if (activeTargetFactionId == null) {
+                cachedStatus = resolvedStatus
+                activeRawMembers = emptyList()
+                lastFetchedAtMs = latestFetchMs
+                lastIsStale = anyStale
+                lastStaleReason = staleNotice
+                ffEnabled = ffRepository.isConsentedAndEnabled(acct.id)
+                rebuildContent()
+                return@launch
+            }
+
+            when (val membersRes = tornApi.getFactionMembers(acct.id, activeTargetFactionId, priority, forceRefresh)) {
+                is ApiResult.Success -> {
+                    cachedStatus = resolvedStatus
+                    activeRawMembers = membersRes.data
+                    lastFetchedAtMs = membersRes.fetchedAtMs
+                    lastIsStale = anyStale
+                    lastStaleReason = staleNotice
+
+                    val candidates = stakeoutManager.processFactionMembers(acct.id, activeTargetFactionId, activeRawMembers)
                     if (candidates.isNotEmpty()) {
                         alertEngine.reconcileCandidates(
                             accountId = acct.id,
@@ -260,23 +480,19 @@ class WarViewModel(
                     }
 
                     ffEnabled = ffRepository.isConsentedAndEnabled(acct.id)
-                    if (ffEnabled && rawMembers.isNotEmpty()) {
-                        val ffRes = ffRepository.stats(acct.id, rawMembers.map { it.playerId }, forceRefresh = false)
-                        ffMap = ffRes.getOrNull().orEmpty()
-                    }
+                    fetchMissingFfStats(acct.id, activeRawMembers)
                     rebuildContent()
                 }
                 is ApiResult.Failure -> {
-                    val stale = membersRes.staleData
-                    if (!stale.isNullOrEmpty()) {
-                        rawMembers = stale
-                        currentFactionId = fid
-                        currentFactionName = targetFactionName
+                    val staleMembers = membersRes.staleData
+                    cachedStatus = resolvedStatus
+                    if (!staleMembers.isNullOrEmpty()) {
+                        activeRawMembers = staleMembers
                         lastFetchedAtMs = membersRes.staleFetchedAtMs ?: clock.nowEpochMs()
                         lastIsStale = true
                         lastStaleReason = membersRes.error.message
                         rebuildContent()
-                    } else if (rawMembers.isNotEmpty()) {
+                    } else if (activeRawMembers.isNotEmpty() || cachedWars.isNotEmpty()) {
                         lastIsStale = true
                         lastStaleReason = membersRes.error.message
                         rebuildContent()
@@ -288,16 +504,65 @@ class WarViewModel(
         }
     }
 
-    private suspend fun rebuildContent() {
-        val fid = currentFactionId ?: return
-        if (rawMembers.isEmpty() && _uiState.value is WarUiState.NoActiveWar) return
+    private suspend fun fetchMissingFfStats(accountId: String, members: List<TornFactionMember>) {
+        if (!ffEnabled || members.isEmpty()) return
+        val ids = members.map { it.playerId }
+        val res = ffRepository.stats(accountId, ids, forceRefresh = false)
+        res.getOrNull()?.let { ffMap.putAll(it) }
+    }
 
+    private suspend fun rebuildContent() {
+        val status = cachedStatus ?: return
         val nowMs = clock.nowEpochMs()
         val nowSec = nowMs / 1_000L
+
+        val activeRows = filterAndSortMembers(activeRawMembers, nowSec)
+        val historyGroups = groupEndedWarsByOpponent(cachedWars).map { summary ->
+            val fid = summary.enemyFactionId
+            val isExpanded = fid in expandedHistoryFactionIds
+            val raw = historyRawMembersByFaction[fid].orEmpty()
+            val rows = if (isExpanded && raw.isNotEmpty()) {
+                filterAndSortMembers(raw, nowSec)
+            } else {
+                emptyList()
+            }
+            HistoryFactionGroup(
+                enemyFactionId = fid,
+                enemyFactionName = summary.enemyFactionName,
+                wars = summary.wars,
+                isExpanded = isExpanded,
+                membersState = HistoryFactionMembersState(
+                    isLoading = fid in historyLoadingFactions,
+                    rows = rows,
+                    totalMemberCount = raw.size,
+                    errorMessage = historyErrorsByFaction[fid],
+                    fetchedAtMs = historyFetchedAtByFaction[fid],
+                    isStale = fid in historyStaleByFaction
+                )
+            )
+        }
+
+        _uiState.value = WarUiState.Content(
+            status = status,
+            activeRows = activeRows,
+            totalActiveMemberCount = activeRawMembers.size,
+            historyGroups = historyGroups,
+            ffEnabled = ffEnabled,
+            fetchedAtMs = lastFetchedAtMs,
+            isStale = lastIsStale,
+            staleReason = lastStaleReason
+        )
+    }
+
+    private suspend fun filterAndSortMembers(
+        members: List<TornFactionMember>,
+        nowSec: Long
+    ): List<WarMemberRowModel> {
+        if (members.isEmpty()) return emptyList()
         val qf = _quickFilters.value
         val ef = _extraFilters.value
 
-        val enriched = rawMembers.map { member ->
+        val enriched = members.map { member ->
             val flightEst = if (member.status.state == StatusKind.TRAVELING) {
                 flightRepository.estimateForMember(
                     playerId = member.playerId,
@@ -353,7 +618,7 @@ class WarViewModel(
             quickMatch && ffOk && bsOk && lvlOk && offlineOk
         }
 
-        val sorted = when (_sortMode.value) {
+        return when (_sortMode.value) {
             WarSortMode.TACTICAL -> filtered.sortedWith(
                 compareBy<WarMemberRowModel>(
                     { tacticalPriority(it.member.status.state) },
@@ -372,17 +637,6 @@ class WarViewModel(
             WarSortMode.BS_ASC -> filtered.sortedBy { it.ffStats?.bsEstimate ?: Long.MAX_VALUE }
             WarSortMode.NAME -> filtered.sortedBy { it.member.name.lowercase() }
         }
-
-        _uiState.value = WarUiState.Content(
-            war = currentWar,
-            factionId = fid,
-            factionName = currentFactionName,
-            rows = sorted,
-            ffEnabled = ffEnabled,
-            fetchedAtMs = lastFetchedAtMs,
-            isStale = lastIsStale,
-            staleReason = lastStaleReason
-        )
     }
 
     private fun tacticalPriority(state: StatusKind): Int = when (state) {

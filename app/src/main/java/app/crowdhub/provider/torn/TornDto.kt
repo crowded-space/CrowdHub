@@ -40,7 +40,11 @@ data class TornUserProfileInnerDto(
     val id: Long? = null,
     val name: String? = null,
     val level: Int? = null,
-    val status: TornStatusDto? = null
+    @SerialName("faction_id") val factionId: Long? = null,
+    val status: TornStatusDto? = null,
+    @SerialName("last_action") val lastAction: TornLastActionDto? = null,
+    val revivable: Boolean? = null,
+    @SerialName("revive_setting") val reviveSetting: String? = null
 )
 
 @Serializable
@@ -59,7 +63,20 @@ data class TornBarDto(
     val interval: Int? = null,
     @SerialName("tick_time") val tickTime: Long? = null,
     val ticktime: Long? = null,
+    @SerialName("full_time") val fullTime: Long? = null,
     val fulltime: Long? = null
+)
+
+@Serializable
+data class TornChainBarDto(
+    val id: Long? = null,
+    val current: Int? = null,
+    val max: Int? = null,
+    val timeout: Int? = null,
+    val modifier: Double? = null,
+    val cooldown: Long? = null,
+    val start: Long? = null,
+    val end: Long? = null
 )
 
 @Serializable
@@ -76,7 +93,8 @@ data class TornBarsContainerDto(
     val energy: TornBarDto? = null,
     val nerve: TornBarDto? = null,
     val happy: TornBarDto? = null,
-    val life: TornBarDto? = null
+    val life: TornBarDto? = null,
+    val chain: TornChainBarDto? = null
 )
 
 @Serializable
@@ -97,7 +115,9 @@ data class TornUserCooldownsResponseDto(
 @Serializable
 data class TornTravelDto(
     val destination: String? = null,
+    @SerialName("arrival_at") val arrivalAt: Long? = null,
     val timestamp: Long? = null,
+    @SerialName("departed_at") val departedAt: Long? = null,
     val departed: Long? = null,
     @SerialName("time_left") val timeLeft: Long? = null,
     val method: String? = null
@@ -107,10 +127,33 @@ data class TornTravelDto(
 data class TornUserTravelResponseDto(
     val travel: TornTravelDto? = null,
     val destination: String? = null,
+    @SerialName("arrival_at") val arrivalAt: Long? = null,
     val timestamp: Long? = null,
+    @SerialName("departed_at") val departedAt: Long? = null,
     val departed: Long? = null,
     @SerialName("time_left") val timeLeft: Long? = null,
     val method: String? = null
+)
+
+@Serializable
+data class TornMoneyCityBankDto(
+    val amount: Long? = null,
+    val profit: Long? = null,
+    val duration: Int? = null,
+    @SerialName("interest_rate") val interestRate: Double? = null,
+    @SerialName("invested_at") val investedAt: Long? = null,
+    val until: Long? = null
+)
+
+@Serializable
+data class TornMoneyContainerDto(
+    val points: Long? = null,
+    val wallet: Long? = null,
+    val company: Long? = null,
+    val vault: Long? = null,
+    @SerialName("cayman_bank") val caymanBank: Long? = null,
+    @SerialName("city_bank") val cityBank: TornMoneyCityBankDto? = null,
+    @SerialName("daily_networth") val dailyNetworth: Long? = null
 )
 
 @Serializable
@@ -143,7 +186,16 @@ data class TornUserNotificationsResponseDto(
 )
 
 @Serializable
+data class TornStockMarketDto(
+    val price: Double? = null,
+    val cap: Long? = null,
+    val shares: Long? = null,
+    val investors: Long? = null
+)
+
+@Serializable
 data class TornStockBenefitDto(
+    val passive: Boolean? = null,
     val requirement: Long? = null,
     val description: String? = null,
     val frequency: Int? = null
@@ -155,6 +207,8 @@ data class TornStockItemDto(
     val id: Int? = null,
     val name: String? = null,
     val acronym: String? = null,
+    val market: TornStockMarketDto? = null,
+    val bonus: TornStockBenefitDto? = null,
     @SerialName("current_price") val currentPrice: Double? = null,
     @SerialName("market_cap") val marketCap: Long? = null,
     @SerialName("total_shares") val totalShares: Long? = null,
@@ -183,8 +237,11 @@ data class TornFactionMemberDto(
     @SerialName("player_id") val playerId: Long? = null,
     val name: String? = null,
     val level: Int? = null,
+    @SerialName("days_in_faction") val daysInFaction: Int? = null,
     val status: TornStatusDto? = null,
-    @SerialName("last_action") val lastAction: TornLastActionDto? = null
+    @SerialName("last_action") val lastAction: TornLastActionDto? = null,
+    val position: String? = null,
+    @SerialName("is_revivable") val isRevivable: Boolean? = null
 )
 
 @Serializable

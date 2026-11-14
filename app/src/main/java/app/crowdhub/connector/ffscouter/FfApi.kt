@@ -34,12 +34,6 @@ class FfApi(
     private val vault: SecretVault,
     private val clock: Clock
 ) {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-        coerceInputValues = true
-        explicitNulls = false
-    }
 
     suspend fun getStats(
         accountId: String,
@@ -124,58 +118,68 @@ class FfApi(
         }
     }
 
-    private fun parseStatsResponse(raw: String, nowMs: Long): List<FfStats> {
-        val el: JsonElement = json.parseToJsonElement(raw)
-        val items: List<FfStatItemDto> = when (el) {
-            is JsonArray -> el.mapNotNull { runCatching { json.decodeFromJsonElement<FfStatItemDto>(it) }.getOrNull() }
-            is JsonObject -> {
-                val wrapper = runCatching { json.decodeFromJsonElement<FfStatsWrapperDto>(el) }.getOrNull()
-                wrapper?.stats ?: wrapper?.data ?: el.entries.mapNotNull { (k, v) ->
-                    runCatching {
-                        val dto = json.decodeFromJsonElement<FfStatItemDto>(v)
-                        if (dto.playerId == null && dto.id == null) dto.copy(playerId = k.toLongOrNull()) else dto
-                    }.getOrNull()
-                }
-            }
-            else -> emptyList()
-        }
-        return items.mapNotNull { item ->
-            val pid = item.playerId ?: item.id ?: return@mapNotNull null
-            FfStats(
-                playerId = pid,
-                fairFight = item.fairFight,
-                bsEstimate = item.bsEstimate,
-                bsHuman = item.bsHuman,
-                lastUpdatedSec = item.lastUpdated,
-                fetchedAtMs = nowMs,
-                isStale = false
-            )
-        }
-    }
-
-    private fun parseTargetsResponse(raw: String): List<FfTargetCandidate> {
-        val el: JsonElement = json.parseToJsonElement(raw)
-        val items: List<FfTargetItemDto> = when (el) {
-            is JsonArray -> el.mapNotNull { runCatching { json.decodeFromJsonElement<FfTargetItemDto>(it) }.getOrNull() }
-            is JsonObject -> {
-                val wrapper = runCatching { json.decodeFromJsonElement<FfTargetsWrapperDto>(el) }.getOrNull()
-                wrapper?.targets ?: wrapper?.data ?: emptyList()
-            }
-            else -> emptyList()
-        }
-        return items.mapNotNull { item ->
-            val pid = item.playerId ?: item.id ?: return@mapNotNull null
-            FfTargetCandidate(
-                playerId = pid,
-                name = item.name,
-                level = item.level,
-                fairFight = item.fairFight,
-                bsEstimate = item.bsEstimate,
-                bsHuman = item.bsHuman,
-                lastUpdatedSec = item.lastUpdated
-            )
-        }
-    }
-
     private fun enc(value: String): String = URLEncoder.encode(value, "UTF-8")
+
+    companion object {
+        private val json = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            coerceInputValues = true
+            explicitNulls = false
+        }
+
+        internal fun parseStatsResponse(raw: String, nowMs: Long): List<FfStats> {
+            val el: JsonElement = json.parseToJsonElement(raw)
+            val items: List<FfStatItemDto> = when (el) {
+                is JsonArray -> el.mapNotNull { runCatching { json.decodeFromJsonElement<FfStatItemDto>(it) }.getOrNull() }
+                is JsonObject -> {
+                    val wrapper = runCatching { json.decodeFromJsonElement<FfStatsWrapperDto>(el) }.getOrNull()
+                    wrapper?.stats ?: wrapper?.data ?: el.entries.mapNotNull { (k, v) ->
+                        runCatching {
+                            val dto = json.decodeFromJsonElement<FfStatItemDto>(v)
+                            if (dto.playerId == null && dto.id == null) dto.copy(playerId = k.toLongOrNull()) else dto
+                        }.getOrNull()
+                    }
+                }
+                else -> emptyList()
+            }
+            return items.mapNotNull { item ->
+                val pid = item.playerId ?: item.id ?: return@mapNotNull null
+                FfStats(
+                    playerId = pid,
+                    fairFight = item.fairFight,
+                    bsEstimate = item.bsEstimate,
+                    bsHuman = item.bsHuman,
+                    lastUpdatedSec = item.lastUpdated,
+                    fetchedAtMs = nowMs,
+                    isStale = false
+                )
+            }
+        }
+
+        internal fun parseTargetsResponse(raw: String): List<FfTargetCandidate> {
+            val el: JsonElement = json.parseToJsonElement(raw)
+            val items: List<FfTargetItemDto> = when (el) {
+                is JsonArray -> el.mapNotNull { runCatching { json.decodeFromJsonElement<FfTargetItemDto>(it) }.getOrNull() }
+                is JsonObject -> {
+                    val wrapper = runCatching { json.decodeFromJsonElement<FfTargetsWrapperDto>(el) }.getOrNull()
+                    wrapper?.targets ?: wrapper?.data ?: emptyList()
+                }
+                else -> emptyList()
+            }
+            return items.mapNotNull { item ->
+                val pid = item.playerId ?: item.id ?: return@mapNotNull null
+                FfTargetCandidate(
+                    playerId = pid,
+                    name = item.name,
+                    level = item.level,
+                    fairFight = item.fairFight,
+                    bsEstimate = item.bsEstimate,
+                    bsHuman = item.bsHuman,
+                    lastUpdatedSec = item.lastUpdated ?: item.bssPublicTimestamp,
+                    lastActionSec = item.lastAction
+                )
+            }
+        }
+    }
 }

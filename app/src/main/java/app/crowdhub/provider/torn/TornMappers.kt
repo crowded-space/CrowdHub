@@ -58,13 +58,16 @@ data class TornTravel(
     val method: String?
 ) {
     val isActivelyFlying: Boolean
-        get() = (arrivalEpochSec != null && departedEpochSec != null && arrivalEpochSec > departedEpochSec) ||
-            (timeLeftSec != null && timeLeftSec > 0L)
+        get() = timeLeftSec != null && timeLeftSec > 0L
 }
 
 data class TornMoney(
     val cashOnHand: Long?,
-    val points: Long?
+    val points: Long?,
+    val vault: Long? = null,
+    val caymanBank: Long? = null,
+    val cityBankAmount: Long? = null,
+    val dailyNetworth: Long? = null
 )
 
 data class TornEventItem(
@@ -91,7 +94,10 @@ data class TornStock(
     val forecast: String?,
     val demand: String?,
     val benefitDescription: String?,
-    val benefitRequirement: Long?
+    val benefitRequirement: Long?,
+    val investors: Long? = null,
+    val bonusPassive: Boolean? = null,
+    val bonusFrequencyDays: Int? = null
 )
 
 data class TornFactionMember(
@@ -114,7 +120,10 @@ data class TornRankedWar(
     val ownFactionName: String,
     val enemyFactionId: Long,
     val enemyFactionName: String,
-    val isActive: Boolean
+    val isActive: Boolean,
+    val ownScore: Int? = null,
+    val enemyScore: Int? = null,
+    val isScheduled: Boolean = false
 )
 
 data class TornOtherProfile(
@@ -141,7 +150,7 @@ object TornMappers {
         return TornStatus(
             state = StatusKind.fromRaw(rawState),
             rawState = rawState,
-            description = dto?.description.orEmpty().ifBlank { rawState.ifBlank { "Unknown" } },
+            description = dto?.description.orEmpty().trim().ifBlank { rawState.ifBlank { "Unknown" } },
             untilEpochSec = dto?.until?.takeIf { it > 0L },
             planeImageType = dto?.planeImageType?.takeIf { it.isNotBlank() }
         )
@@ -153,7 +162,7 @@ object TornMappers {
         val name = dto.name ?: dto.profile?.name ?: "Player $id"
         val level = dto.level ?: dto.profile?.level
         val statusDto = dto.status ?: dto.profile?.status
-        val factionId = dto.faction?.factionId ?: dto.faction?.id
+        val factionId = dto.faction?.factionId ?: dto.faction?.id ?: dto.profile?.factionId
         val factionName = dto.faction?.factionName ?: dto.faction?.name
         return TornBasicInfo(
             playerId = id,
@@ -190,7 +199,7 @@ object TornMappers {
             increment = dto.increment,
             intervalSec = dto.interval,
             tickTimeSec = dto.tickTime ?: dto.ticktime,
-            fullTimeSec = dto.fulltime
+            fullTimeSec = dto.fullTime ?: dto.fulltime
         )
     }
 
@@ -208,8 +217,8 @@ object TornMappers {
         val dto = runCatching { json.decodeFromString<TornUserTravelResponseDto>(rawJson) }.getOrNull() ?: return null
         val inner = dto.travel
         val dest = inner?.destination ?: dto.destination ?: return null
-        val ts = (inner?.timestamp ?: dto.timestamp)?.takeIf { it > 0L }
-        val dep = (inner?.departed ?: dto.departed)?.takeIf { it > 0L }
+        val ts = (inner?.arrivalAt ?: inner?.timestamp ?: dto.arrivalAt ?: dto.timestamp)?.takeIf { it > 0L }
+        val dep = (inner?.departedAt ?: inner?.departed ?: dto.departedAt ?: dto.departed)?.takeIf { it > 0L }
         val left = (inner?.timeLeft ?: dto.timeLeft)?.takeIf { it >= 0L }
         val method = inner?.method ?: dto.method
         return TornTravel(
@@ -223,8 +232,13 @@ object TornMappers {
 
     fun mapMoney(rawJson: String): TornMoney? {
         val dto = runCatching { json.decodeFromString<TornMoneyDto>(rawJson) }.getOrNull() ?: return null
-        var cash = dto.moneyOnhand ?: dto.wallet
-        var points = dto.points
+        val container = if (dto.money is JsonObject) {
+            runCatching { json.decodeFromJsonElement<TornMoneyContainerDto>(dto.money) }.getOrNull()
+        } else {
+            null
+        }
+        var cash = dto.moneyOnhand ?: dto.wallet ?: container?.wallet
+        var points = dto.points ?: container?.points
         if (cash == null && dto.money is JsonObject) {
             cash = dto.money["wallet"]?.jsonPrimitive?.longOrNull
                 ?: dto.money["money_onhand"]?.jsonPrimitive?.longOrNull
@@ -233,7 +247,14 @@ object TornMappers {
                 points = dto.money["points"]?.jsonPrimitive?.longOrNull
             }
         }
-        return TornMoney(cashOnHand = cash, points = points)
+        return TornMoney(
+            cashOnHand = cash,
+            points = points,
+            vault = container?.vault,
+            caymanBank = container?.caymanBank,
+            cityBankAmount = container?.cityBank?.amount,
+            dailyNetworth = container?.dailyNetworth
+        )
     }
 
     fun mapNotifications(rawJson: String): TornNotifications {
@@ -287,21 +308,25 @@ object TornMappers {
 
         return rawItems.mapNotNull { (resolvedId, item) ->
             val stockId = resolvedId ?: return@mapNotNull null
-            val price = item.currentPrice?.takeIf { it > 0.0 } ?: return@mapNotNull null
+            val price = (item.market?.price ?: item.currentPrice)?.takeIf { it > 0.0 } ?: return@mapNotNull null
             val name = item.name?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val acronym = item.acronym?.takeIf { it.isNotBlank() } ?: name.take(4).uppercase()
+            val benefit = item.bonus ?: item.benefit
             TornStock(
                 stockId = stockId,
                 name = name,
                 acronym = acronym,
                 currentPrice = price,
-                marketCap = item.marketCap,
-                totalShares = item.totalShares,
+                marketCap = item.market?.cap ?: item.marketCap,
+                totalShares = item.market?.shares ?: item.totalShares,
                 availableShares = item.availableShares,
                 forecast = item.forecast,
                 demand = item.demand,
-                benefitDescription = item.benefit?.description,
-                benefitRequirement = item.benefit?.requirement
+                benefitDescription = benefit?.description,
+                benefitRequirement = benefit?.requirement,
+                investors = item.market?.investors ?: item.investors,
+                bonusPassive = benefit?.passive,
+                bonusFrequencyDays = benefit?.frequency
             )
         }
     }
@@ -349,18 +374,23 @@ object TornMappers {
             val own = factions.firstOrNull { it.id == ownFactionId } ?: factions.firstOrNull() ?: return@mapNotNull null
             val enemy = factions.firstOrNull { it.id != own.id } ?: return@mapNotNull null
             val enemyId = enemy.id ?: return@mapNotNull null
-            val isEnded = war.winner != null || (war.end != null && war.end > 0L && war.end < nowSec)
+            val hasWinner = war.winner != null && war.winner > 0L
+            val isEnded = hasWinner || (war.end != null && war.end > 0L && war.end <= nowSec)
+            val isScheduled = !isEnded && war.start != null && war.start > nowSec
             TornRankedWar(
                 warId = warId,
                 startEpochSec = war.start,
                 endEpochSec = war.end,
                 targetScore = war.target,
-                winnerFactionId = war.winner,
+                winnerFactionId = war.winner?.takeIf { it > 0L },
                 ownFactionId = own.id ?: ownFactionId,
                 ownFactionName = own.name ?: "Faction ${own.id ?: ownFactionId}",
                 enemyFactionId = enemyId,
                 enemyFactionName = enemy.name ?: "Faction $enemyId",
-                isActive = !isEnded
+                isActive = !isEnded,
+                ownScore = own.score,
+                enemyScore = enemy.score,
+                isScheduled = isScheduled
             )
         }
     }
@@ -371,15 +401,18 @@ object TornMappers {
         val name = dto.name ?: dto.profile?.name ?: "Player $pid"
         val level = dto.level ?: dto.profile?.level
         val status = mapStatus(dto.status ?: dto.profile?.status)
+        val lastAction = dto.lastAction ?: dto.profile?.lastAction
+        val factionId = (dto.faction?.factionId ?: dto.faction?.id ?: dto.profile?.factionId)?.takeIf { it > 0L }
+        val factionName = dto.faction?.factionName ?: dto.faction?.name
         return TornOtherProfile(
             playerId = pid,
             name = name,
             level = level,
             status = status,
-            lastActionStatus = dto.lastAction?.status,
-            lastActionTimestampSec = dto.lastAction?.timestamp,
-            factionId = dto.faction?.factionId ?: dto.faction?.id,
-            factionName = dto.faction?.factionName ?: dto.faction?.name
+            lastActionStatus = lastAction?.status,
+            lastActionTimestampSec = lastAction?.timestamp,
+            factionId = factionId,
+            factionName = factionName
         )
     }
 

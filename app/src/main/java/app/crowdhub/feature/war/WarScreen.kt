@@ -56,7 +56,6 @@ import app.crowdhub.core.ui.components.EmptyView
 import app.crowdhub.core.ui.components.ErrorView
 import app.crowdhub.core.ui.components.LoadingView
 import app.crowdhub.core.ui.components.OfflineBanner
-import app.crowdhub.core.ui.components.StaleBadge
 import app.crowdhub.core.ui.theme.CrowColors
 import app.crowdhub.feature.browser.AttackNavigator
 import app.crowdhub.provider.torn.TornUrls
@@ -86,7 +85,7 @@ fun WarScreen(
     var showFiltersSheet by remember { mutableStateOf(false) }
     var showManualFactionDialog by remember { mutableStateOf(false) }
     var manualFactionInput by remember { mutableStateOf(prefs.manualWarFactionId) }
-    var detailRow by remember { mutableStateOf<WarMemberRowModel?>(null) }
+    var detailRow by remember { mutableStateOf<Pair<WarMemberRowModel, String?>?>(null) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -140,88 +139,182 @@ fun WarScreen(
                     onRetry = { viewModel.refresh(forceRefresh = true) },
                     onFixKey = state.accountId?.let { id -> { onOpenAccount(id) } }
                 )
-                is WarUiState.NoActiveWar -> {
-                    EmptyView(
-                        title = "No active ranked war",
-                        subtitle = state.message,
-                        actionLabel = "Stake out another faction",
-                        onAction = { showManualFactionDialog = true }
-                    )
-                }
                 is WarUiState.Content -> {
                     val dimmed = state.isStale || (clock.nowEpochMs() - state.fetchedAtMs > 60_000L)
                     if (state.isStale) {
-                        OfflineBanner("Rate-limited or offline (${state.staleReason ?: "stale"}) — cached roster")
+                        OfflineBanner("Rate-limited or offline (${state.staleReason ?: "stale"}) — cached data")
                     }
 
-                    CrowCard(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    CurrentWarStatusBanner(
+                        status = state.status,
+                        ffEnabled = state.ffEnabled,
+                        fetchedAtMs = state.fetchedAtMs,
+                        clock = clock,
+                        onChangeStakeout = {
+                            manualFactionInput = prefs.manualWarFactionId
+                            showManualFactionDialog = true
+                        },
+                        onClearManualStakeout = {
+                            manualFactionInput = ""
+                            viewModel.setManualFactionId("")
+                        }
+                    )
+
+                    val hasActiveRoster = state.status !is CurrentWarStatus.NotInWar
+                    val anyHistoryExpanded = state.historyGroups.any { it.isExpanded }
+                    if (hasActiveRoster || anyHistoryExpanded) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = state.war?.let { "${it.ownFactionName} vs ${it.enemyFactionName}" }
-                                        ?: state.factionName,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = CrowColors.Text
+                            WarQuickFilter.entries.forEach { f ->
+                                FilterChip(
+                                    selected = f in quickFilters,
+                                    onClick = { viewModel.toggleQuickFilter(f) },
+                                    label = { Text(f.label) }
                                 )
-                                Text(
-                                    text = state.war?.let { if (it.isActive) "Active Ranked War" else "Ended War" }
-                                        ?: "Manual Stakeout · ID ${state.factionId}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = CrowColors.SheenSoft
-                                )
-                            }
-                            TextButton(onClick = { showManualFactionDialog = true }) {
-                                Text("Change")
                             }
                         }
-                        Spacer(Modifier.height(4.dp))
-                        StaleBadge(fetchedAtMs = state.fetchedAtMs, clock = clock)
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        WarQuickFilter.entries.forEach { f ->
-                            FilterChip(
-                                selected = f in quickFilters,
-                                onClick = { viewModel.toggleQuickFilter(f) },
-                                label = { Text(f.label) }
-                            )
-                        }
-                    }
+                        if (hasActiveRoster) {
+                            val activeEnemyName = when (val st = state.status) {
+                                is CurrentWarStatus.Active -> st.war.enemyFactionName
+                                is CurrentWarStatus.Upcoming -> st.war.enemyFactionName
+                                is CurrentWarStatus.ManualStakeout -> st.factionName
+                                is CurrentWarStatus.NotInWar -> null
+                            }
 
-                    if (state.rows.isEmpty()) {
-                        EmptyView(title = "No members match active filters.")
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            items(state.rows, key = { it.member.playerId }) { row ->
-                                MemberRow(
-                                    row = row,
-                                    ffEnabled = state.ffEnabled,
-                                    ffLowThreshold = prefs.ffLowThreshold,
-                                    ffHighThreshold = prefs.ffHighThreshold,
-                                    clock = clock,
-                                    dimmed = dimmed,
-                                    onToggleStar = { viewModel.toggleStar(row.member.playerId) },
-                                    onAttack = {
-                                        scope.launch {
-                                            attackNavigator.open(context, row.member.playerId, onNavigateToBrowser)
+                            if (state.activeRows.isEmpty()) {
+                                item(key = "active_empty") {
+                                    CrowCard {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (state.totalActiveMemberCount > 0) {
+                                                    "No members match active filters (${state.totalActiveMemberCount} total)."
+                                                } else {
+                                                    "No opponent members loaded."
+                                                },
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = CrowColors.TextMuted,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            if (state.totalActiveMemberCount > 0) {
+                                                TextButton(onClick = { viewModel.clearAllFilters() }) {
+                                                    Text("Clear")
+                                                }
+                                            }
                                         }
-                                    },
-                                    onRowClick = { detailRow = row }
+                                    }
+                                }
+                            } else {
+                                items(
+                                    items = state.activeRows,
+                                    key = { "active_${it.member.playerId}" }
+                                ) { row ->
+                                    MemberRow(
+                                        row = row,
+                                        ffEnabled = state.ffEnabled,
+                                        ffLowThreshold = prefs.ffLowThreshold,
+                                        ffHighThreshold = prefs.ffHighThreshold,
+                                        clock = clock,
+                                        dimmed = dimmed,
+                                        onToggleStar = { viewModel.toggleStar(row.member.playerId) },
+                                        onAttack = {
+                                            scope.launch {
+                                                attackNavigator.open(context, row.member.playerId, onNavigateToBrowser)
+                                            }
+                                        },
+                                        onRowClick = { detailRow = row to activeEnemyName }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (state.historyGroups.isNotEmpty()) {
+                            item(key = "history_section_header") {
+                                WarHistorySectionHeader(
+                                    factionCount = state.historyGroups.size,
+                                    totalWars = state.historyGroups.sumOf { it.wars.size }
+                                )
+                            }
+
+                            state.historyGroups.forEach { group ->
+                                item(key = "history_header_${group.enemyFactionId}") {
+                                    HistoryOpponentFactionHeaderCard(
+                                        group = group,
+                                        onToggleExpand = { viewModel.toggleHistoryFaction(group.enemyFactionId) },
+                                        onRefreshMembers = {
+                                            viewModel.refreshHistoryFaction(group.enemyFactionId, forceRefresh = true)
+                                        }
+                                    )
+                                }
+
+                                if (group.isExpanded) {
+                                    val mState = group.membersState
+                                    if (mState.rows.isNotEmpty()) {
+                                        items(
+                                            items = mState.rows,
+                                            key = { "hist_${group.enemyFactionId}_${it.member.playerId}" }
+                                        ) { row ->
+                                            NestedFactionMemberContainer {
+                                                MemberRow(
+                                                    row = row,
+                                                    ffEnabled = state.ffEnabled,
+                                                    ffLowThreshold = prefs.ffLowThreshold,
+                                                    ffHighThreshold = prefs.ffHighThreshold,
+                                                    clock = clock,
+                                                    dimmed = mState.isStale,
+                                                    onToggleStar = { viewModel.toggleStar(row.member.playerId) },
+                                                    onAttack = {
+                                                        scope.launch {
+                                                            attackNavigator.open(
+                                                                context,
+                                                                row.member.playerId,
+                                                                onNavigateToBrowser
+                                                            )
+                                                        }
+                                                    },
+                                                    onRowClick = { detailRow = row to group.enemyFactionName }
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        item(key = "hist_status_${group.enemyFactionId}") {
+                                            NestedFactionStatusBox(
+                                                isLoading = mState.isLoading,
+                                                errorMessage = mState.errorMessage,
+                                                hasFilteredOutAll = mState.totalMemberCount > 0,
+                                                factionName = group.enemyFactionName,
+                                                onRetry = {
+                                                    viewModel.refreshHistoryFaction(
+                                                        group.enemyFactionId,
+                                                        forceRefresh = true
+                                                    )
+                                                },
+                                                onClearFilters = { viewModel.clearAllFilters() }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (!hasActiveRoster) {
+                            item(key = "no_history") {
+                                EmptyView(
+                                    title = "No previous war history",
+                                    subtitle = "Completed ranked wars against enemy factions will appear here grouped by opponent."
                                 )
                             }
                         }
@@ -349,7 +442,7 @@ fun WarScreen(
         }
     }
 
-    detailRow?.let { row ->
+    detailRow?.let { (row, sourceFactionName) ->
         ModalBottomSheet(
             onDismissRequest = { detailRow = null },
             containerColor = CrowColors.Surface
@@ -365,6 +458,9 @@ fun WarScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
+                if (!sourceFactionName.isNullOrBlank()) {
+                    Text("Faction: $sourceFactionName", style = MaterialTheme.typography.labelSmall, color = CrowColors.SheenSoft)
+                }
                 Text("Status: ${row.member.status.description}", color = CrowColors.TextMuted)
                 Text("Last action: ${row.member.lastActionStatus ?: "—"} (${row.member.lastActionRelative ?: "—"})", color = CrowColors.TextMuted)
 
@@ -389,7 +485,7 @@ fun WarScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = {
-                            viewModel.addToTargets(row.member)
+                            viewModel.addToTargets(row.member, sourceFactionName)
                             detailRow = null
                         },
                         modifier = Modifier.weight(1f)

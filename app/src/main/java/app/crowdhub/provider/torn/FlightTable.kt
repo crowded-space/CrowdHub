@@ -19,17 +19,19 @@ enum class TravelPlace(val displayName: String) {
             if (raw.isNullOrBlank()) return UNKNOWN
             val norm = raw.trim().lowercase()
             return when {
-                norm.contains("mexico") || norm.contains("ciudad juarez") -> MEXICO
+                norm.contains("mexico") || norm.contains("mexican") || norm.contains("ciudad juarez") -> MEXICO
                 norm.contains("cayman") -> CAYMAN_ISLANDS
-                norm.contains("canada") || norm.contains("toronto") -> CANADA
-                norm.contains("hawaii") || norm.contains("honolulu") -> HAWAII
-                norm.contains("united kingdom") || norm.contains("london") || Regex("\\buk\\b").containsMatchIn(norm) -> UNITED_KINGDOM
-                norm.contains("argentina") || norm.contains("buenos aires") -> ARGENTINA
-                norm.contains("switzerland") || norm.contains("zurich") -> SWITZERLAND
-                norm.contains("japan") || norm.contains("tokyo") -> JAPAN
-                norm.contains("china") || norm.contains("beijing") -> CHINA
-                norm.contains("united arab emirates") || norm.contains("dubai") || Regex("\\buae\\b").containsMatchIn(norm) -> UAE
-                norm.contains("south africa") || norm.contains("johannesburg") -> SOUTH_AFRICA
+                norm.contains("canada") || norm.contains("canadian") || norm.contains("toronto") -> CANADA
+                norm.contains("hawaii") || norm.contains("hawaiian") || norm.contains("honolulu") -> HAWAII
+                norm.contains("united kingdom") || norm.contains("british") || norm.contains("english") ||
+                    norm.contains("london") || Regex("\\buk\\b").containsMatchIn(norm) -> UNITED_KINGDOM
+                norm.contains("argentina") || norm.contains("argentin") || norm.contains("buenos aires") -> ARGENTINA
+                norm.contains("switzerland") || norm.contains("swiss") || norm.contains("zurich") -> SWITZERLAND
+                norm.contains("japan") || norm.contains("japanese") || norm.contains("tokyo") -> JAPAN
+                norm.contains("china") || norm.contains("chinese") || norm.contains("beijing") -> CHINA
+                norm.contains("united arab emirates") || norm.contains("emirati") || norm.contains("dubai") ||
+                    Regex("\\buae\\b").containsMatchIn(norm) -> UAE
+                norm.contains("south africa") || norm.contains("south african") || norm.contains("johannesburg") -> SOUTH_AFRICA
                 else -> UNKNOWN
             }
         }
@@ -78,6 +80,18 @@ object FlightTable {
         TravelPlace.SOUTH_AFRICA to intArrayOf(282, 197, 141, 85)
     )
 
+    // Verified against _samples/flight-data-notes.md and _samples/faction-members.json
+    val defaultPlaneTypeMap: Map<String, PlaneCategory> = mapOf(
+        "airliner" to PlaneCategory.STANDARD,
+        "light_aircraft" to PlaneCategory.AIRSTRIP,
+        "private_jet" to PlaneCategory.WLT
+    )
+
+    fun defaultCategoryForPlaneType(apiValue: String?): PlaneCategory {
+        val norm = apiValue?.trim()?.lowercase() ?: return PlaneCategory.UNKNOWN
+        return defaultPlaneTypeMap[norm] ?: PlaneCategory.UNKNOWN
+    }
+
     fun baseMinutes(place: TravelPlace, category: PlaneCategory): Int? {
         val row = tableMinutes[place] ?: return null
         if (category == PlaneCategory.UNKNOWN || category.index !in row.indices) return null
@@ -93,9 +107,14 @@ object FlightTable {
         val lower = description.trim().lowercase()
         val place = TravelPlace.parseFromText(description)
         val direction = when {
-            lower.startsWith("returning to torn") || lower.contains("returning from") -> TravelDirection.RETURN
-            lower.startsWith("traveling to") || lower.startsWith("travelling to") -> TravelDirection.OUT
-            lower.startsWith("in ") -> TravelDirection.ABROAD
+            lower.startsWith("returning to torn") ||
+                lower.contains("returning from") ||
+                Regex("^travell?ing from .+ to torn$").matches(lower) -> TravelDirection.RETURN
+            lower.startsWith("traveling from torn to ") ||
+                lower.startsWith("travelling from torn to ") ||
+                lower.startsWith("traveling to ") ||
+                lower.startsWith("travelling to ") -> TravelDirection.OUT
+            lower.startsWith("in ") && place != TravelPlace.UNKNOWN -> TravelDirection.ABROAD
             else -> TravelDirection.UNKNOWN
         }
         return ParsedTravelDescription(direction, place)

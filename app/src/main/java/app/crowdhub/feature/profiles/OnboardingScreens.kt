@@ -87,13 +87,16 @@ fun OnboardingScreen(
     }
 
     LaunchedEffect(Unit) {
-        val resumeStep = profileRepository.determineStartStep()
+        val resumeStep = runCatching { profileRepository.determineStartStep() }
+            .getOrDefault(OnboardingStep.WELCOME)
         if (resumeStep == OnboardingStep.DONE) {
             onFinished()
             return@LaunchedEffect
         }
-        if (resumeStep == OnboardingStep.ADD_ACCOUNT) {
-            // Ensure profile id is hydrated if resuming mid-flow
+        val existingProfile = runCatching { profileRepository.getActiveProfile() }.getOrNull()
+        if (existingProfile != null) {
+            activeProfileId = existingProfile.id
+            profileName = existingProfile.name
         }
         step = resumeStep
     }

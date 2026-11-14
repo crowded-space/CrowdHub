@@ -69,6 +69,8 @@ class ProfileRepository(
         }
     }
 
+    suspend fun getActiveProfile(): ProfileEntity? = profileDao.getActiveProfile()
+
     suspend fun getActiveAccount(): ProviderAccountEntity? {
         val active = profileDao.getActiveProfile() ?: return null
         return accountDao.getPrimaryForProfile(active.id)

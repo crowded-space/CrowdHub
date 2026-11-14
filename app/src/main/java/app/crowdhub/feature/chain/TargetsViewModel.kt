@@ -270,7 +270,7 @@ class TargetsViewModel(
                             level = t.level,
                             status = StatusKind.UNKNOWN,
                             hospitalLeavesAtSec = null,
-                            lastActionSec = null,
+                            lastActionSec = t.lastActionSec,
                             fairFight = t.fairFight,
                             bsEstimate = t.bsEstimate,
                             bsHuman = t.bsHuman,

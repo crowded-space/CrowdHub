@@ -36,7 +36,16 @@ object TornUrls {
         val host = uri.host?.lowercase() ?: return false
         if (host !in ALLOWED_WEB_HOSTS) return false
         val path = uri.path?.lowercase().orEmpty()
-        return path.contains("login") || path.contains("authenticate")
+        val sid = runCatching { uri.getQueryParameter("sid") }.getOrNull()?.lowercase()
+        return path.contains("login") || path.contains("authenticate") || sid == "auth"
+    }
+
+    fun isHomeUrl(url: String): Boolean {
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
+        val host = uri.host?.lowercase() ?: return false
+        if (host !in ALLOWED_WEB_HOSTS) return false
+        val path = uri.path?.lowercase().orEmpty()
+        return path.isEmpty() || path == "/" || path == "/index.php"
     }
 
     fun isHospitalListUrl(url: String): Boolean {
