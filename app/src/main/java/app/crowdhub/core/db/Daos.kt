@@ -117,20 +117,23 @@ interface ScheduledAlertDao {
 
 @Dao
 interface StockDao {
-    @Query("SELECT * FROM stock_snapshot WHERE stockId = :stockId AND ts >= :sinceMs ORDER BY ts ASC")
-    suspend fun getSnapshotsSince(stockId: Int, sinceMs: Long): List<StockSnapshotEntity>
+    @Query("SELECT * FROM stock_snapshot WHERE profileId = :profileId AND stockId = :stockId AND ts >= :sinceMs ORDER BY ts ASC")
+    suspend fun getSnapshotsSince(profileId: String, stockId: Int, sinceMs: Long): List<StockSnapshotEntity>
 
-    @Query("SELECT * FROM stock_snapshot WHERE ts >= :sinceMs ORDER BY stockId ASC, ts ASC")
-    suspend fun getAllSnapshotsSince(sinceMs: Long): List<StockSnapshotEntity>
+    @Query("SELECT * FROM stock_snapshot WHERE profileId = :profileId AND ts >= :sinceMs ORDER BY stockId ASC, ts ASC")
+    suspend fun getAllSnapshotsSince(profileId: String, sinceMs: Long): List<StockSnapshotEntity>
 
-    @Query("SELECT MAX(ts) FROM stock_snapshot WHERE stockId = :stockId")
-    suspend fun getLatestTs(stockId: Int): Long?
+    @Query("SELECT MAX(ts) FROM stock_snapshot WHERE profileId = :profileId AND stockId = :stockId")
+    suspend fun getLatestTs(profileId: String, stockId: Int): Long?
 
     @Insert
     suspend fun insertSnapshots(items: List<StockSnapshotEntity>)
 
     @Query("DELETE FROM stock_snapshot WHERE ts < :cutoffMs")
     suspend fun deleteSnapshotsBefore(cutoffMs: Long)
+
+    @Query("DELETE FROM stock_snapshot WHERE profileId = :profileId")
+    suspend fun clearSnapshotsForProfile(profileId: String)
 
     @Query("DELETE FROM stock_snapshot")
     suspend fun clearAllSnapshots()
@@ -171,8 +174,29 @@ interface CacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun put(entry: CacheEntryEntity)
 
+    @Query("DELETE FROM cache_entry WHERE profileId = :profileId")
+    suspend fun deleteForProfile(profileId: String)
+
     @Query("DELETE FROM cache_entry")
     suspend fun clearAll()
+}
+
+@Dao
+interface PlayerNameCacheDao {
+    @Query("SELECT * FROM player_name_cache WHERE profileId = :profileId AND playerId IN (:playerIds)")
+    suspend fun getByIds(profileId: String, playerIds: List<Long>): List<PlayerNameCacheEntity>
+
+    @Query("SELECT * FROM player_name_cache WHERE profileId = :profileId")
+    suspend fun getAllForProfile(profileId: String): List<PlayerNameCacheEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entries: List<PlayerNameCacheEntity>)
+
+    @Query("DELETE FROM player_name_cache WHERE profileId = :profileId")
+    suspend fun deleteForProfile(profileId: String)
+
+    @Query("DELETE FROM player_name_cache WHERE updatedAt < :cutoffMs")
+    suspend fun pruneExpired(cutoffMs: Long)
 }
 
 @Dao
@@ -231,11 +255,14 @@ interface UserscriptDao {
 
 @Dao
 interface FfCacheDao {
-    @Query("SELECT * FROM ff_cache WHERE playerId IN (:playerIds)")
-    suspend fun getByIds(playerIds: List<Long>): List<FfCacheEntity>
+    @Query("SELECT * FROM ff_cache WHERE profileId = :profileId AND playerId IN (:playerIds)")
+    suspend fun getByIds(profileId: String, playerIds: List<Long>): List<FfCacheEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entries: List<FfCacheEntity>)
+
+    @Query("DELETE FROM ff_cache WHERE profileId = :profileId")
+    suspend fun clearForProfile(profileId: String)
 
     @Query("DELETE FROM ff_cache")
     suspend fun clearAll()
@@ -243,14 +270,17 @@ interface FfCacheDao {
 
 @Dao
 interface WarAndFlightDao {
-    @Query("SELECT * FROM member_snapshot WHERE factionId = :factionId")
-    suspend fun getSnapshotsForFaction(factionId: Long): List<MemberSnapshotEntity>
+    @Query("SELECT * FROM member_snapshot WHERE profileId = :profileId AND factionId = :factionId")
+    suspend fun getSnapshotsForFaction(profileId: String, factionId: Long): List<MemberSnapshotEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSnapshots(snapshots: List<MemberSnapshotEntity>)
 
-    @Query("DELETE FROM member_snapshot WHERE factionId = :factionId")
-    suspend fun clearFactionSnapshots(factionId: Long)
+    @Query("DELETE FROM member_snapshot WHERE profileId = :profileId AND factionId = :factionId")
+    suspend fun clearFactionSnapshots(profileId: String, factionId: Long)
+
+    @Query("DELETE FROM member_snapshot WHERE profileId = :profileId")
+    suspend fun clearSnapshotsForProfile(profileId: String)
 
     @Query("SELECT * FROM stakeout WHERE accountId = :accountId")
     fun observeStakeouts(accountId: String): Flow<List<StakeoutEntity>>
@@ -267,29 +297,35 @@ interface WarAndFlightDao {
     @Query("DELETE FROM stakeout WHERE accountId = :accountId")
     suspend fun deleteStakeoutsForAccount(accountId: String)
 
-    @Query("SELECT * FROM flight_observation ORDER BY id DESC LIMIT 100")
-    fun observeRecentObservations(): Flow<List<FlightObservationEntity>>
+    @Query("SELECT * FROM flight_observation WHERE profileId = :profileId ORDER BY id DESC LIMIT 100")
+    fun observeRecentObservations(profileId: String): Flow<List<FlightObservationEntity>>
 
-    @Query("SELECT * FROM flight_observation WHERE playerId = :playerId ORDER BY id DESC LIMIT 50")
-    suspend fun getObservationsForPlayer(playerId: Long): List<FlightObservationEntity>
+    @Query("SELECT * FROM flight_observation WHERE profileId = :profileId AND playerId = :playerId ORDER BY id DESC LIMIT 50")
+    suspend fun getObservationsForPlayer(profileId: String, playerId: Long): List<FlightObservationEntity>
 
     @Insert
     suspend fun insertObservation(obs: FlightObservationEntity)
 
-    @Query("DELETE FROM flight_observation WHERE playerId = :playerId AND id NOT IN (SELECT id FROM flight_observation WHERE playerId = :playerId ORDER BY id DESC LIMIT 50)")
-    suspend fun trimObservationsForPlayer(playerId: Long)
+    @Query("DELETE FROM flight_observation WHERE profileId = :profileId AND playerId = :playerId AND id NOT IN (SELECT id FROM flight_observation WHERE profileId = :profileId AND playerId = :playerId ORDER BY id DESC LIMIT 50)")
+    suspend fun trimObservationsForPlayer(profileId: String, playerId: Long)
+
+    @Query("DELETE FROM flight_observation WHERE profileId = :profileId")
+    suspend fun clearObservationsForProfile(profileId: String)
 
     @Query("DELETE FROM flight_observation WHERE detectedAt IS NOT NULL AND detectedAt < :cutoffMs")
     suspend fun pruneOldObservations(cutoffMs: Long)
 
-    @Query("SELECT * FROM player_flight_profile WHERE playerId = :playerId LIMIT 1")
-    suspend fun getFlightProfile(playerId: Long): PlayerFlightProfileEntity?
+    @Query("SELECT * FROM player_flight_profile WHERE profileId = :profileId AND playerId = :playerId LIMIT 1")
+    suspend fun getFlightProfile(profileId: String, playerId: Long): PlayerFlightProfileEntity?
 
-    @Query("SELECT * FROM player_flight_profile WHERE playerId IN (:playerIds)")
-    suspend fun getFlightProfiles(playerIds: List<Long>): List<PlayerFlightProfileEntity>
+    @Query("SELECT * FROM player_flight_profile WHERE profileId = :profileId AND playerId IN (:playerIds)")
+    suspend fun getFlightProfiles(profileId: String, playerIds: List<Long>): List<PlayerFlightProfileEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertFlightProfile(profile: PlayerFlightProfileEntity)
+
+    @Query("DELETE FROM player_flight_profile WHERE profileId = :profileId")
+    suspend fun clearFlightProfilesForProfile(profileId: String)
 
     @Query("SELECT * FROM plane_type_map")
     fun observePlaneTypeMap(): Flow<List<PlaneTypeMapEntity>>
@@ -302,6 +338,18 @@ interface WarAndFlightDao {
 
     @Query("DELETE FROM plane_type_map WHERE apiValue = :apiValue")
     suspend fun deletePlaneTypeMapping(apiValue: String)
+
+    @Query("SELECT * FROM active_flight WHERE profileId = :profileId")
+    suspend fun getAllActiveFlights(profileId: String): List<ActiveFlightEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertActiveFlight(flight: ActiveFlightEntity)
+
+    @Query("DELETE FROM active_flight WHERE profileId = :profileId AND playerId = :playerId")
+    suspend fun deleteActiveFlight(profileId: String, playerId: Long)
+
+    @Query("DELETE FROM active_flight WHERE profileId = :profileId")
+    suspend fun clearActiveFlightsForProfile(profileId: String)
 }
 
 @Dao

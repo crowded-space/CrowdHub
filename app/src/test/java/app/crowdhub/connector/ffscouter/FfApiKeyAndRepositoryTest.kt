@@ -79,13 +79,17 @@ class FfApiKeyAndRepositoryTest {
     }
 
     private class InMemoryFfCacheDao : FfCacheDao {
-        val rows = linkedMapOf<Long, FfCacheEntity>()
+        val rows = linkedMapOf<Pair<String, Long>, FfCacheEntity>()
 
-        override suspend fun getByIds(playerIds: List<Long>): List<FfCacheEntity> =
-            playerIds.mapNotNull { rows[it] }
+        override suspend fun getByIds(profileId: String, playerIds: List<Long>): List<FfCacheEntity> =
+            playerIds.mapNotNull { rows[profileId to it] }
 
         override suspend fun upsertAll(entries: List<FfCacheEntity>) {
-            entries.forEach { rows[it.playerId] = it }
+            entries.forEach { rows[it.profileId to it.playerId] = it }
+        }
+
+        override suspend fun clearForProfile(profileId: String) {
+            rows.keys.removeAll { it.first == profileId }
         }
 
         override suspend fun clearAll() {
@@ -218,7 +222,7 @@ class FfApiKeyAndRepositoryTest {
         assertTrue(info.hasCustomKey)
         assertEquals("••••••••7788", info.maskedCustomKey)
         assertEquals("••••••••7788", info.maskedEffectiveKey)
-        assertEquals(3.54, cacheDao.rows[3962657L]?.fairFight ?: 0.0, 0.001)
+        assertEquals(3.54, cacheDao.rows["default" to 3962657L]?.fairFight ?: 0.0, 0.001)
 
         // Removing custom key reverts cleanly to Torn fallback
         repo.removeCustomKey("acct-1")

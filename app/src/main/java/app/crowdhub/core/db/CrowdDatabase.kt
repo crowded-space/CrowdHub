@@ -25,9 +25,11 @@ import androidx.room.RoomDatabase
         PlayerFlightProfileEntity::class,
         PlaneTypeMapEntity::class,
         TargetEntity::class,
-        HospitalCaptureEntity::class
+        HospitalCaptureEntity::class,
+        ActiveFlightEntity::class,
+        PlayerNameCacheEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = true
 )
 abstract class CrowdDatabase : RoomDatabase() {
@@ -38,6 +40,7 @@ abstract class CrowdDatabase : RoomDatabase() {
     abstract fun scheduledAlertDao(): ScheduledAlertDao
     abstract fun stockDao(): StockDao
     abstract fun cacheDao(): CacheDao
+    abstract fun playerNameCacheDao(): PlayerNameCacheDao
     abstract fun userscriptDao(): UserscriptDao
     abstract fun ffCacheDao(): FfCacheDao
     abstract fun warAndFlightDao(): WarAndFlightDao
@@ -50,7 +53,12 @@ abstract class CrowdDatabase : RoomDatabase() {
                 CrowdDatabase::class.java,
                 "crowdhub.db"
             )
-                .addMigrations(Migrations.MIGRATION_1_2, Migrations.MIGRATION_2_3)
+                .addMigrations(
+                    Migrations.MIGRATION_1_2,
+                    Migrations.MIGRATION_2_3,
+                    Migrations.MIGRATION_3_4,
+                    Migrations.MIGRATION_4_5
+                )
                 .build()
         }
     }

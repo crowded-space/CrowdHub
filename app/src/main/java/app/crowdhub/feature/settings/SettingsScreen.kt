@@ -371,12 +371,17 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showClearCacheConfirm = false },
             title = { Text("Clear API Cache?") },
-            text = { Text("Deletes cached API responses; next refresh will fetch fresh data from Torn.") },
+            text = { Text("Deletes cached API responses for this profile; next refresh will fetch fresh data from Torn.") },
             confirmButton = {
                 Button(
                     onClick = {
                         scope.launch {
-                            responseCache.clearAll()
+                            val pid = profileRepository.getActiveProfile()?.id
+                            if (pid != null) {
+                                responseCache.invalidateProfile(pid)
+                            } else {
+                                responseCache.clearAll()
+                            }
                             showClearCacheConfirm = false
                             feedbackBanner = "API cache cleared."
                         }
@@ -393,12 +398,17 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showClearStocksConfirm = false },
             title = { Text("Clear Stock History?") },
-            text = { Text("Deletes locally recorded price snapshots used for charts and % move alerts.") },
+            text = { Text("Deletes locally recorded price snapshots for this profile used for charts and % move alerts.") },
             confirmButton = {
                 Button(
                     onClick = {
                         scope.launch {
-                            stockRepository.clearAllHistory()
+                            val pid = profileRepository.getActiveProfile()?.id
+                            if (pid != null) {
+                                stockRepository.clearHistoryForProfile(pid)
+                            } else {
+                                stockRepository.clearAllHistory()
+                            }
                             showClearStocksConfirm = false
                             feedbackBanner = "Stock history cleared."
                         }

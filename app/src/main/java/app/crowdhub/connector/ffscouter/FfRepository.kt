@@ -35,7 +35,8 @@ class FfRepository(
     private val ffCacheDao: FfCacheDao,
     private val ffApi: FfApi,
     private val vault: SecretVault,
-    private val clock: Clock
+    private val clock: Clock,
+    private val resolveProfileId: suspend (String) -> String = { "default" }
 ) {
     fun observeEnabled(accountId: String): Flow<Boolean> {
         return connectorLinkDao.observe(accountId, FfDefaults.CONNECTOR_ID).map { link ->
@@ -68,17 +69,18 @@ class FfRepository(
         customApiKey: String? = null
     ): ApiResult<Unit> {
         val now = clock.nowEpochMs()
+        val profileId = resolveProfileId(accountId)
         val cleanCustom = customApiKey?.trim()?.takeIf { it.isNotEmpty() }
         if (cleanCustom != null) {
             val vaultRes = vault.put(SecretVault.ffApiKeyAlias(accountId), cleanCustom)
             if (vaultRes is VaultResult.KeystoreError) {
                 return ApiResult.Failure(ApiError.Unknown(0, vaultRes.message))
             }
-            ffCacheDao.clearAll()
+            ffCacheDao.clearForProfile(profileId)
         }
 
         upsertEnabledLink(accountId, now)
-        return verifyAndCacheOwnStats(accountId, ownPlayerId, overrideKey = cleanCustom)
+        return verifyAndCacheOwnStats(profileId, accountId, ownPlayerId, overrideKey = cleanCustom)
     }
 
     suspend fun saveCustomKeyAndEnable(
@@ -102,10 +104,11 @@ class FfRepository(
         }
 
         val now = clock.nowEpochMs()
+        val profileId = resolveProfileId(accountId)
         upsertEnabledLink(accountId, now)
-        ffCacheDao.clearAll()
+        ffCacheDao.clearForProfile(profileId)
         if (verification is ApiResult.Success && ownPlayerId != null && ownPlayerId > 0L) {
-            cacheStats(verification.data.filter { it.playerId == ownPlayerId })
+            cacheStats(profileId, verification.data.filter { it.playerId == ownPlayerId })
         }
         return ApiResult.Success(Unit, now)
     }
@@ -114,20 +117,23 @@ class FfRepository(
         accountId: String,
         ownPlayerId: Long?
     ): ApiResult<Unit> {
-        return verifyAndCacheOwnStats(accountId, ownPlayerId, overrideKey = null)
+        val profileId = resolveProfileId(accountId)
+        return verifyAndCacheOwnStats(profileId, accountId, ownPlayerId, overrideKey = null)
     }
 
     suspend fun removeCustomKey(accountId: String) {
+        val profileId = resolveProfileId(accountId)
         vault.delete(SecretVault.ffApiKeyAlias(accountId))
-        ffCacheDao.clearAll()
+        ffCacheDao.clearForProfile(profileId)
     }
 
     suspend fun disable(accountId: String) {
+        val profileId = resolveProfileId(accountId)
         val existing = connectorLinkDao.get(accountId, FfDefaults.CONNECTOR_ID)
         if (existing != null) {
             connectorLinkDao.upsert(existing.copy(enabled = false, consentAt = null))
         }
-        ffCacheDao.clearAll()
+        ffCacheDao.clearForProfile(profileId)
     }
 
     suspend fun stats(
@@ -142,7 +148,8 @@ class FfRepository(
         if (uniqueIds.isEmpty()) return ApiResult.Success(emptyMap(), clock.nowEpochMs())
 
         val now = clock.nowEpochMs()
-        val cachedRows = uniqueIds.chunked(200).flatMap { ffCacheDao.getByIds(it) }
+        val profileId = resolveProfileId(accountId)
+        val cachedRows = uniqueIds.chunked(200).flatMap { ffCacheDao.getByIds(profileId, it) }
         val cachedMap = cachedRows.associate { row ->
             val stale = (now - row.fetchedAt) >= FfDefaults.CACHE_TTL_MS
             row.playerId to FfStats(
@@ -173,7 +180,7 @@ class FfRepository(
         for (batch in idsToFetch.chunked(FfDefaults.BATCH_SIZE)) {
             when (val res = ffApi.getStats(accountId, batch)) {
                 is ApiResult.Success -> {
-                    cacheStats(res.data)
+                    cacheStats(profileId, res.data)
                     for (item in res.data) {
                         cachedMap[item.playerId] = item
                     }
@@ -220,6 +227,7 @@ class FfRepository(
     }
 
     private suspend fun verifyAndCacheOwnStats(
+        profileId: String,
         accountId: String,
         ownPlayerId: Long?,
         overrideKey: String?
@@ -228,7 +236,7 @@ class FfRepository(
         return when (val res = ffApi.verifyKey(accountId, ownPlayerId, overrideKey)) {
             is ApiResult.Success -> {
                 if (ownPlayerId != null && ownPlayerId > 0L) {
-                    cacheStats(res.data.filter { it.playerId == ownPlayerId })
+                    cacheStats(profileId, res.data.filter { it.playerId == ownPlayerId })
                 }
                 ApiResult.Success(Unit, now)
             }
@@ -236,11 +244,12 @@ class FfRepository(
         }
     }
 
-    private suspend fun cacheStats(items: List<FfStats>) {
+    private suspend fun cacheStats(profileId: String, items: List<FfStats>) {
         if (items.isEmpty()) return
         ffCacheDao.upsertAll(
             items.map {
                 FfCacheEntity(
+                    profileId = profileId,
                     playerId = it.playerId,
                     fairFight = it.fairFight,
                     bsEstimate = it.bsEstimate,

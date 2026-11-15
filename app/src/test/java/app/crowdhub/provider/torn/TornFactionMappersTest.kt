@@ -234,4 +234,64 @@ class TornFactionMappersTest {
         assertNotNull(emptySelf)
         assertNull(emptySelf?.crime)
     }
+
+    @Test
+    fun `mapFactionCrimes preserves null userName when API omits slot user name`() {
+        val raw = """
+            {
+              "crimes": [
+                {
+                  "id": 9001,
+                  "name": "Stacking the Deck",
+                  "status": "Recruiting",
+                  "slots": [
+                    {
+                      "position": "Driver",
+                      "user": { "id": 123456, "progress": 100.0 }
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+        val crimes = TornMappers.mapFactionCrimes(raw)
+        assertNotNull(crimes)
+        assertEquals(123456L, crimes!!.first().slots.first().userId)
+        assertNull(crimes.first().slots.first().userName)
+    }
+
+    @Test
+    fun `mapUserList parses v2 user list array for friends targets and enemies`() {
+        val raw = """
+            {
+              "list": [
+                {
+                  "id": 222333,
+                  "name": "AllyBird",
+                  "level": 68,
+                  "days_in_torn": 900,
+                  "note": "Reliable trader",
+                  "status": {
+                    "state": "Okay",
+                    "description": "Okay"
+                  },
+                  "last_action": {
+                    "status": "Online",
+                    "relative": "2 minutes ago",
+                    "timestamp": 1700001000
+                  }
+                }
+              ]
+            }
+        """.trimIndent()
+        val entries = TornMappers.mapUserList(raw)
+        assertNotNull(entries)
+        assertEquals(1, entries!!.size)
+        val item = entries.first()
+        assertEquals(222333L, item.playerId)
+        assertEquals("AllyBird", item.name)
+        assertEquals(68, item.level)
+        assertEquals("Reliable trader", item.note)
+        assertEquals("Online", item.lastActionStatus)
+    }
 }

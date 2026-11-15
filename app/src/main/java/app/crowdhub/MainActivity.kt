@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Dashboard
-import androidx.compose.material.icons.outlined.GpsFixed
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -43,6 +44,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import app.crowdhub.core.alerts.Scheduler
+import app.crowdhub.core.profile.ActiveProfileState
 import app.crowdhub.core.profile.OnboardingStep
 import app.crowdhub.core.ui.components.CrowdWordmark
 import app.crowdhub.core.ui.nav.CrowRoute
@@ -83,7 +85,7 @@ private val TOP_TABS = listOf(
     TopTabItem(CrowRoute.Dashboard, "Dash", Icons.Outlined.Dashboard, "tab_dashboard"),
     TopTabItem(CrowRoute.Stocks, "Stocks", Icons.Outlined.ShowChart, "tab_stocks"),
     TopTabItem(CrowRoute.Faction(), "Faction", Icons.Outlined.Groups, "tab_faction"),
-    TopTabItem(CrowRoute.Targets, "Targets", Icons.Outlined.GpsFixed, "tab_targets"),
+    TopTabItem(CrowRoute.Targets, "People", Icons.Outlined.People, "tab_targets"),
     TopTabItem(CrowRoute.Browser(), "Browser", Icons.Outlined.Language, "tab_browser")
 )
 
@@ -116,7 +118,7 @@ class MainActivity : ComponentActivity() {
                             .background(CrowColors.CrowBlack),
                         contentAlignment = Alignment.Center
                     ) {
-                        CrowdWordmark()
+                        CrowdWordmark(isHero = true)
                     }
                 } else {
                     CrowdHubRoot(
@@ -176,7 +178,8 @@ private fun CrowdHubRoot(
             alertEngine = container.alertEngine,
             targetDao = container.db.targetDao(),
             settingsStore = container.settingsStore,
-            clock = container.clock
+            clock = container.clock,
+            playerNameCache = container.playerNameCache
         )
     )
 
@@ -229,8 +232,7 @@ private fun CrowdHubRoot(
             destination.hasRoute<CrowRoute.Stocks>() ||
             destination.hasRoute<CrowRoute.Faction>() ||
             destination.hasRoute<CrowRoute.War>() ||
-            destination.hasRoute<CrowRoute.Targets>() ||
-            destination.hasRoute<CrowRoute.Browser>()
+            destination.hasRoute<CrowRoute.Targets>()
         )
 
     Scaffold(
@@ -254,7 +256,15 @@ private fun CrowdHubRoot(
                         }
                         NavigationBarItem(
                             selected = selected,
-                            onClick = { navigateTopTab(tab.route) },
+                            onClick = {
+                                if (tab.route is CrowRoute.Browser) {
+                                    navController.navigate(CrowRoute.Browser()) {
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    navigateTopTab(tab.route)
+                                }
+                            },
                             icon = { Icon(tab.icon, contentDescription = tab.label) },
                             label = { Text(tab.label) },
                             colors = NavigationBarItemDefaults.colors(
@@ -300,8 +310,16 @@ private fun CrowdHubRoot(
                     clock = container.clock,
                     onOpenAccount = { id -> navController.navigate(CrowRoute.AccountDetail(id)) },
                     onOpenBrowserHome = {
-                        container.browserNavigator.requestInAppOpen(TornUrls.HOME)
-                        navigateTopTab(CrowRoute.Browser())
+                        container.browserNavigator.requestInAppOpen(TornUrls.HOME, inNewTab = true, switchToTab = true)
+                        navController.navigate(CrowRoute.Browser()) { launchSingleTop = true }
+                    },
+                    onOpenGym = {
+                        container.browserNavigator.requestInAppOpen(TornUrls.GYM, inNewTab = true, switchToTab = true)
+                        navController.navigate(CrowRoute.Browser()) { launchSingleTop = true }
+                    },
+                    onOpenCrimes = {
+                        container.browserNavigator.requestInAppOpen(TornUrls.CRIMES, inNewTab = true, switchToTab = true)
+                        navController.navigate(CrowRoute.Browser()) { launchSingleTop = true }
                     },
                     onOpenScripts = { navController.navigate(CrowRoute.Scripts) },
                     onOpenSettings = { navController.navigate(CrowRoute.Settings) },
@@ -339,7 +357,9 @@ private fun CrowdHubRoot(
                     clock = container.clock,
                     initialTab = args.initialTab?.let { FactionInnerTab.fromArg(it) },
                     onOpenAccount = { id -> navController.navigate(CrowRoute.AccountDetail(id)) },
-                    onNavigateToBrowser = { navigateTopTab(CrowRoute.Browser()) }
+                    onNavigateToBrowser = {
+                        navController.navigate(CrowRoute.Browser()) { launchSingleTop = true }
+                    }
                 )
             }
 
@@ -353,7 +373,9 @@ private fun CrowdHubRoot(
                     clock = container.clock,
                     initialTab = FactionInnerTab.WAR,
                     onOpenAccount = { id -> navController.navigate(CrowRoute.AccountDetail(id)) },
-                    onNavigateToBrowser = { navigateTopTab(CrowRoute.Browser()) }
+                    onNavigateToBrowser = {
+                        navController.navigate(CrowRoute.Browser()) { launchSingleTop = true }
+                    }
                 )
             }
 
@@ -364,14 +386,16 @@ private fun CrowdHubRoot(
                     attackNavigator = container.attackNavigator,
                     browserNavigator = container.browserNavigator,
                     clock = container.clock,
-                    onNavigateToBrowser = { navigateTopTab(CrowRoute.Browser()) }
+                    onNavigateToBrowser = {
+                        navController.navigate(CrowRoute.Browser()) { launchSingleTop = true }
+                    }
                 )
             }
 
             composable<CrowRoute.Browser> { entry ->
                 val args = entry.toRoute<CrowRoute.Browser>()
                 BrowserScreen(
-                    initialUrlArg = args.initialUrl ?: container.browserNavigator.consumePendingUrl(),
+                    initialUrlArg = args.initialUrl,
                     profileRepository = container.profileRepository,
                     settingsStore = container.settingsStore,
                     secretVault = container.secretVault,
@@ -384,7 +408,11 @@ private fun CrowdHubRoot(
                     targetsViewModel = container.targetsViewModel,
                     clock = container.clock,
                     onOpenScripts = { navController.navigate(CrowRoute.Scripts) },
-                    onBackPressed = { navigateTopTab(CrowRoute.Dashboard) }
+                    onBackPressed = {
+                        if (!navController.popBackStack()) {
+                            navigateTopTab(CrowRoute.Dashboard)
+                        }
+                    }
                 )
             }
 
@@ -488,8 +516,12 @@ private fun CrowdHubRoot(
             }
 
             composable<CrowRoute.FlightDebug> {
+                val activeProfile by container.profileRepository.observeActiveState().collectAsStateWithLifecycle(
+                    initialValue = ActiveProfileState(null, null, emptyList())
+                )
                 FlightDebugScreen(
                     flightRepository = container.flightRepository,
+                    profileId = activeProfile.profile?.id ?: "default",
                     onBack = { navController.popBackStack() }
                 )
             }

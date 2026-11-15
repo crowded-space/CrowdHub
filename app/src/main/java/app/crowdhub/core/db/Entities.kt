@@ -95,10 +95,11 @@ data class ScheduledAlertEntity(
 
 @Entity(
     tableName = "stock_snapshot",
-    indices = [Index(value = ["stockId", "ts"])]
+    indices = [Index(value = ["profileId", "stockId", "ts"])]
 )
 data class StockSnapshotEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val profileId: String,
     val stockId: Int,
     val ts: Long,
     val price: Double
@@ -120,12 +121,27 @@ data class StockWatchEntity(
     val enabled: Boolean
 )
 
-@Entity(tableName = "cache_entry")
+@Entity(
+    tableName = "cache_entry",
+    indices = [Index(value = ["profileId"])]
+)
 data class CacheEntryEntity(
     @PrimaryKey val key: String,
+    val profileId: String,
     val body: String,
     val fetchedAt: Long,
     val ttlMs: Long
+)
+
+@Entity(
+    tableName = "player_name_cache",
+    primaryKeys = ["profileId", "playerId"]
+)
+data class PlayerNameCacheEntity(
+    val profileId: String,
+    val playerId: Long,
+    val name: String,
+    val updatedAt: Long
 )
 
 // Phase 1B Entities
@@ -181,10 +197,14 @@ data class ScriptLogEntity(
     val message: String
 )
 
-// Phase 2 Entities
-@Entity(tableName = "ff_cache")
+// Phase 2 Entities (Profile-scoped caches)
+@Entity(
+    tableName = "ff_cache",
+    primaryKeys = ["profileId", "playerId"]
+)
 data class FfCacheEntity(
-    @PrimaryKey val playerId: Long,
+    val profileId: String,
+    val playerId: Long,
     val fairFight: Double?,
     val bsEstimate: Long?,
     val bsHuman: String?,
@@ -194,9 +214,10 @@ data class FfCacheEntity(
 
 @Entity(
     tableName = "member_snapshot",
-    primaryKeys = ["factionId", "playerId"]
+    primaryKeys = ["profileId", "factionId", "playerId"]
 )
 data class MemberSnapshotEntity(
+    val profileId: String,
     val factionId: Long,
     val playerId: Long,
     val ts: Long,
@@ -225,10 +246,11 @@ data class StakeoutEntity(
 
 @Entity(
     tableName = "flight_observation",
-    indices = [Index(value = ["playerId", "detectedAt"])]
+    indices = [Index(value = ["profileId", "playerId", "detectedAt"])]
 )
 data class FlightObservationEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val profileId: String,
     val playerId: Long,
     val direction: String, // OUT | RETURN
     val place: String,
@@ -242,9 +264,13 @@ data class FlightObservationEntity(
     val inferredBook: Boolean?
 )
 
-@Entity(tableName = "player_flight_profile")
+@Entity(
+    tableName = "player_flight_profile",
+    primaryKeys = ["profileId", "playerId"]
+)
 data class PlayerFlightProfileEntity(
-    @PrimaryKey val playerId: Long,
+    val profileId: String,
+    val playerId: Long,
     val hasBook: Boolean?,
     val lastObservedAt: Long?
 )
@@ -265,7 +291,7 @@ data class TargetEntity(
     val playerId: Long,
     val name: String?,
     val note: String?,
-    val source: String, // HOSPITAL_PAGE | FFSCOUTER | MANUAL | WAR
+    val source: String, // HOSPITAL_PAGE | FFSCOUTER | MANUAL | WAR | FACTION | FRIENDS | TARGETS | ENEMIES
     val addedAt: Long,
     val watched: Boolean = false
 )
@@ -281,4 +307,19 @@ data class HospitalCaptureEntity(
     val level: Int?,
     val remainingSecAtCapture: Long?,
     val capturedAt: Long
+)
+
+@Entity(
+    tableName = "active_flight",
+    primaryKeys = ["profileId", "playerId"]
+)
+data class ActiveFlightEntity(
+    val profileId: String,
+    val playerId: Long,
+    val direction: String,
+    val place: String,
+    val planeTypeApi: String?,
+    val departPrevPollMs: Long?,
+    val departDetectedMs: Long?,
+    val firstSeenAtMs: Long
 )

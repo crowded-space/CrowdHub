@@ -512,3 +512,25 @@ data class TornUserOrganizedCrimeResponseDto(
     val crime: JsonElement? = null
 )
 
+@Serializable
+data class TornUserListItemDto(
+    val id: Long? = null,
+    @SerialName("user_id") val userId: Long? = null,
+    @SerialName("player_id") val playerId: Long? = null,
+    val name: String? = null,
+    val level: Int? = null,
+    @SerialName("days_in_torn") val daysInTorn: Int? = null,
+    val note: String? = null,
+    val description: String? = null,
+    val status: TornStatusDto? = null,
+    @SerialName("last_action") val lastAction: TornLastActionDto? = null
+)
+
+@Serializable
+data class TornUserListResponseDto(
+    val list: JsonElement? = null,
+    val friends: JsonElement? = null,
+    val targets: JsonElement? = null,
+    val enemies: JsonElement? = null
+)
+

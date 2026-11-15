@@ -7,14 +7,16 @@ import kotlinx.coroutines.sync.withLock
 data class CacheKey(
     val accountId: String,
     val path: String,
-    val queryParams: Map<String, String> = emptyMap()
+    val queryParams: Map<String, String> = emptyMap(),
+    val profileId: String = ""
 ) {
     fun canonicalKey(): String {
         val sortedParams = queryParams.entries
             .filterNot { it.key.equals("key", ignoreCase = true) }
             .sortedBy { it.key }
             .joinToString("&") { "${it.key}=${it.value}" }
-        return if (sortedParams.isEmpty()) "$accountId|$path" else "$accountId|$path?$sortedParams"
+        val base = if (sortedParams.isEmpty()) "$accountId|$path" else "$accountId|$path?$sortedParams"
+        return if (profileId.isNotBlank()) "$profileId|$base" else base
     }
 }
 
@@ -26,6 +28,7 @@ data class CachedResponse(
 interface PersistentCacheStore {
     suspend fun read(key: String): CachedResponse?
     suspend fun write(key: String, body: String, fetchedAtMs: Long, ttlMs: Long)
+    suspend fun deleteForProfile(profileId: String) {}
     suspend fun clearAll()
 }
 
@@ -52,6 +55,18 @@ class ResponseCache(
                 return ApiResult.Success(
                     data = cached.body,
                     fetchedAtMs = cached.fetchedAtMs,
+                    fromCache = true,
+                    isStale = false
+                )
+            }
+            val persisted = persistentStore?.read(canonical)
+            if (persisted != null && (clock.nowEpochMs() - persisted.fetchedAtMs) < ttlMs) {
+                mutex.withLock {
+                    memory[canonical] = persisted
+                }
+                return ApiResult.Success(
+                    data = persisted.body,
+                    fetchedAtMs = persisted.fetchedAtMs,
                     fromCache = true,
                     isStale = false
                 )
@@ -114,9 +129,19 @@ class ResponseCache(
 
     suspend fun invalidateAccount(accountId: String) {
         mutex.withLock {
-            val prefix = "$accountId|"
+            val legacyPrefix = "$accountId|"
+            val scopedToken = "|$accountId|"
+            memory.keys.removeAll { it.startsWith(legacyPrefix) || it.contains(scopedToken) }
+        }
+    }
+
+    suspend fun invalidateProfile(profileId: String) {
+        if (profileId.isBlank()) return
+        mutex.withLock {
+            val prefix = "$profileId|"
             memory.keys.removeAll { it.startsWith(prefix) }
         }
+        persistentStore?.deleteForProfile(profileId)
     }
 
     suspend fun clearAll() {

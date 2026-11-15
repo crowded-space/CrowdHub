@@ -19,7 +19,7 @@ class AttackNavigator(
         val prefs = settingsStore.current()
         when (prefs.openAttacksMode) {
             AttackBrowserMode.IN_APP -> {
-                browserNavigator.requestInAppOpen(url)
+                browserNavigator.requestInAppOpen(url, inNewTab = true, switchToTab = true)
                 onNavigateToBrowser()
             }
             AttackBrowserMode.EXTERNAL -> {

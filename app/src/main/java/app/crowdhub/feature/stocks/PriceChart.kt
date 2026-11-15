@@ -27,11 +27,9 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import app.crowdhub.core.network.LocalTimeFormatter
 import app.crowdhub.core.ui.theme.CrowColors
 import app.crowdhub.core.ui.theme.TabularNumberStyle
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -69,7 +67,6 @@ fun PriceChart(
     modifier: Modifier = Modifier
 ) {
     var selectedIdx by remember(points) { mutableStateOf<Int?>(null) }
-    val timeFmt = remember { SimpleDateFormat("MMM d HH:mm", Locale.getDefault()) }
 
     Column(modifier = modifier) {
         val inspected = selectedIdx?.let { points.getOrNull(it) }
@@ -81,7 +78,7 @@ fun PriceChart(
         ) {
             if (inspected != null) {
                 Text(
-                    text = "$${"%.2f".format(inspected.price)} · ${timeFmt.format(Date(inspected.tsMs))}",
+                    text = "$${"%.2f".format(inspected.price)} · ${LocalTimeFormatter.formatDateTime(inspected.tsMs)}",
                     style = MaterialTheme.typography.labelMedium.merge(TabularNumberStyle),
                     color = CrowColors.AccentD
                 )
@@ -103,7 +100,7 @@ fun PriceChart(
         ) {
             if (points.size < 2) {
                 val sinceText = points.firstOrNull()?.let {
-                    "Collecting data — first point at ${timeFmt.format(Date(it.tsMs))}"
+                    "Collecting data — first point at ${LocalTimeFormatter.formatDateTime(it.tsMs)}"
                 } ?: "Collecting data — snapshots record every minute."
                 Text(
                     text = sinceText,

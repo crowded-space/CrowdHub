@@ -46,15 +46,17 @@ class FactionViewModel(
         viewModelScope.launch {
             profileRepository.observeActiveState().collect { state ->
                 val prevId = activeProfile.primaryAccount?.id
+                val prevProfileId = activeProfile.profile?.id
                 activeProfile = state
                 val acct = state.primaryAccount
-                if (acct != null && acct.id != prevId) {
+                if (acct != null && (acct.id != prevId || state.profile?.id != prevProfileId)) {
                     resetAccountState(acct.id, acct.externalId?.toLongOrNull())
+                    val pid = state.profile?.id ?: "default"
                     launch {
                         stakeoutManager.observeStakeouts(acct.id).collect { list ->
                             starredIds = list.map { it.playerId }.toSet()
                             if (rawMembers.isNotEmpty()) {
-                                val enriched = factionRepository.enrichMembers(rawMembers, starredIds)
+                                val enriched = factionRepository.enrichMembers(pid, rawMembers, starredIds)
                                 _uiState.update { st ->
                                     st.copy(members = st.members.copy(data = enriched))
                                 }
@@ -181,7 +183,7 @@ class FactionViewModel(
                     armoryDef.await()
                     balanceDef.await()
                 }
-                FactionInnerTab.OC -> loadOrganizedCrimes(acct.id, priority, forceRefresh)
+                FactionInnerTab.OC -> loadOrganizedCrimes(acct.id, factionId, priority, forceRefresh)
             }
 
             basicDeferred.await()
@@ -274,7 +276,8 @@ class FactionViewModel(
         when (val res = factionRepository.fetchMembersAndTrackFlights(accountId, factionId, priority, forceRefresh)) {
             is ApiResult.Success -> {
                 rawMembers = res.data
-                val enriched = factionRepository.enrichMembers(res.data, starredIds)
+                val pid = activeProfile.profile?.id ?: "default"
+                val enriched = factionRepository.enrichMembers(pid, res.data, starredIds)
                 _uiState.update {
                     it.copy(
                         members = FactionSectionState(
@@ -288,9 +291,10 @@ class FactionViewModel(
             }
             is ApiResult.Failure -> {
                 val staleRaw = res.staleData
+                val pid = activeProfile.profile?.id ?: "default"
                 val staleEnriched = if (!staleRaw.isNullOrEmpty()) {
                     rawMembers = staleRaw
-                    factionRepository.enrichMembers(staleRaw, starredIds)
+                    factionRepository.enrichMembers(pid, staleRaw, starredIds)
                 } else null
                 _uiState.update { st ->
                     st.copy(
@@ -447,6 +451,7 @@ class FactionViewModel(
 
     private suspend fun loadOrganizedCrimes(
         accountId: String,
+        factionId: Long,
         priority: RequestPriority,
         forceRefresh: Boolean
     ) {
@@ -455,6 +460,7 @@ class FactionViewModel(
         }
         val section = factionRepository.fetchOrganizedCrimes(
             accountId = accountId,
+            factionId = factionId,
             ownPlayerId = _uiState.value.ownPlayerId,
             priority = priority,
             forceRefresh = forceRefresh

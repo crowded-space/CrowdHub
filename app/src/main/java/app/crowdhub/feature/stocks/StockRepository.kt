@@ -39,7 +39,8 @@ class StockRepository(
     private val tornApi: TornApi,
     private val settingsStore: SettingsStore,
     private val clock: Clock,
-    private val evaluator: StockAlertEvaluator = StockAlertEvaluator()
+    private val evaluator: StockAlertEvaluator = StockAlertEvaluator(),
+    private val resolveProfileId: suspend (String) -> String = { "default" }
 ) {
     fun observeWatches(accountId: String): Flow<List<StockWatchEntity>> =
         stockDao.observeWatches(accountId)
@@ -54,7 +55,8 @@ class StockRepository(
     ): ApiResult<List<TornStock>> {
         val result = tornApi.getStocks(accountId, priority, forceRefresh)
         if (result is ApiResult.Success) {
-            recordSnapshots(result.data, result.fetchedAtMs)
+            val profileId = resolveProfileId(accountId)
+            recordSnapshots(profileId, result.data, result.fetchedAtMs)
         }
         return result
     }
@@ -65,16 +67,16 @@ class StockRepository(
         forceRefresh: Boolean
     ): ApiResult<List<TornUserStock>> = tornApi.getUserStocks(accountId, priority, forceRefresh)
 
-    suspend fun getHistory(stockId: Int, range: ChartRange): List<StockPricePoint> {
+    suspend fun getHistory(profileId: String, stockId: Int, range: ChartRange): List<StockPricePoint> {
         val since = clock.nowEpochMs() - range.durationMs
-        val rows = stockDao.getSnapshotsSince(stockId, since)
+        val rows = stockDao.getSnapshotsSince(profileId, stockId, since)
             .map { StockPricePoint(it.ts, it.price) }
         return downsampleToLimit(rows, MAX_CHART_POINTS)
     }
 
-    suspend fun getAllRecent24hSnapshots(): Map<Int, List<StockPricePoint>> {
+    suspend fun getAllRecent24hSnapshots(profileId: String): Map<Int, List<StockPricePoint>> {
         val since = clock.nowEpochMs() - ChartRange.H24.durationMs
-        return stockDao.getAllSnapshotsSince(since)
+        return stockDao.getAllSnapshotsSince(profileId, since)
             .groupBy { it.stockId }
             .mapValues { (_, list) ->
                 downsampleToLimit(list.map { StockPricePoint(it.ts, it.price) }, 40)
@@ -119,6 +121,10 @@ class StockRepository(
         stockDao.deleteWatch(id)
     }
 
+    suspend fun clearHistoryForProfile(profileId: String) {
+        stockDao.clearSnapshotsForProfile(profileId)
+    }
+
     suspend fun clearAllHistory() {
         stockDao.clearAllSnapshots()
     }
@@ -134,9 +140,9 @@ class StockRepository(
 
         val bucketMs = 15L * 60_000L
         val toDelete = mutableListOf<Long>()
-        oldRows.groupBy { it.stockId to (it.ts / bucketMs) }.forEach { (_, group) ->
+        oldRows.groupBy { Triple(it.profileId, it.stockId, it.ts / bucketMs) }.forEach { (_, group) ->
             if (group.size > 1) {
-                // Keep the first row in each 15-min bucket, delete extras
+                // Keep the first row in each 15-min bucket per profile, delete extras
                 group.drop(1).forEach { toDelete += it.id }
             }
         }
@@ -172,9 +178,10 @@ class StockRepository(
             val stocksById = stocks.associateBy { it.stockId }
 
             val now = ctx.nowEpochMs
+            val profileId = resolveProfileId(ctx.accountId)
             val maxWindowMin = watches.mapNotNull { it.pctWindowMin }.maxOrNull() ?: 60
             val historySince = now - maxWindowMin * 60_000L
-            val allHistory = stockDao.getAllSnapshotsSince(historySince)
+            val allHistory = stockDao.getAllSnapshotsSince(profileId, historySince)
                 .groupBy { it.stockId }
                 .mapValues { (_, rows) -> rows.map { StockPricePoint(it.ts, it.price) } }
 
@@ -219,13 +226,14 @@ class StockRepository(
         }
     }
 
-    private suspend fun recordSnapshots(stocks: List<TornStock>, nowMs: Long) {
+    private suspend fun recordSnapshots(profileId: String, stocks: List<TornStock>, nowMs: Long) {
         val toInsert = mutableListOf<StockSnapshotEntity>()
         for (stock in stocks) {
             if (stock.currentPrice <= 0.0) continue
-            val latestTs = stockDao.getLatestTs(stock.stockId)
+            val latestTs = stockDao.getLatestTs(profileId, stock.stockId)
             if (latestTs == null || (nowMs - latestTs) >= MIN_SNAPSHOT_INTERVAL_MS) {
                 toInsert += StockSnapshotEntity(
+                    profileId = profileId,
                     stockId = stock.stockId,
                     ts = nowMs,
                     price = stock.currentPrice

@@ -23,6 +23,13 @@ data class QuickLinkItem(
     val url: String
 )
 
+@Serializable
+data class PersistedBrowserTab(
+    val id: String,
+    val url: String,
+    val title: String = "Torn"
+)
+
 enum class FlightAlertTiming { EARLIEST, MIDPOINT }
 enum class AttackBrowserMode { IN_APP, EXTERNAL }
 
@@ -47,13 +54,27 @@ data class AppPreferences(
     val flightAlertTiming: FlightAlertTiming = FlightAlertTiming.EARLIEST,
     val ffLowThreshold: Double = 2.0,
     val ffHighThreshold: Double = 3.0,
-    val manualWarFactionId: String = "",
-    val quickLinks: List<QuickLinkItem> = emptyList(),
+    val manualWarFactionIdByProfile: Map<String, String> = emptyMap(),
+    val quickLinksByProfile: Map<String, List<QuickLinkItem>> = emptyMap(),
     val backgroundStockSyncEnabled: Boolean = true,
     val backgroundFlightSyncEnabled: Boolean = true,
     val lastBackgroundSyncEpochMs: Long = 0L,
-    val lastBackgroundSyncSummary: String = ""
-)
+    val lastBackgroundSyncSummary: String = "",
+    val browserTabsByProfile: Map<String, List<PersistedBrowserTab>> = emptyMap(),
+    val activeBrowserTabIdByProfile: Map<String, String> = emptyMap()
+) {
+    fun manualWarFactionIdFor(profileId: String): String =
+        if (profileId.isBlank()) "" else manualWarFactionIdByProfile[profileId].orEmpty()
+
+    fun quickLinksFor(profileId: String): List<QuickLinkItem> =
+        if (profileId.isBlank()) emptyList() else quickLinksByProfile[profileId].orEmpty()
+
+    fun browserTabsFor(profileId: String): List<PersistedBrowserTab> =
+        if (profileId.isBlank()) emptyList() else browserTabsByProfile[profileId].orEmpty()
+
+    fun activeBrowserTabIdFor(profileId: String): String =
+        if (profileId.isBlank()) "" else activeBrowserTabIdByProfile[profileId].orEmpty()
+}
 
 class SettingsStore(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -85,12 +106,21 @@ class SettingsStore(private val context: Context) {
         val BG_FLIGHT_SYNC = booleanPreferencesKey("bg_flight_sync")
         val LAST_BG_SYNC_MS = longPreferencesKey("last_bg_sync_ms")
         val LAST_BG_SYNC_SUMMARY = stringPreferencesKey("last_bg_sync_summary")
+        val BROWSER_TABS_JSON = stringPreferencesKey("browser_tabs_json")
+        val ACTIVE_BROWSER_TAB_ID = stringPreferencesKey("active_browser_tab_id")
+
+        val MANUAL_WAR_FACTION_BY_PROFILE_JSON = stringPreferencesKey("manual_war_faction_by_profile_json")
+        val QUICK_LINKS_BY_PROFILE_JSON = stringPreferencesKey("quick_links_by_profile_json")
+        val BROWSER_TABS_BY_PROFILE_JSON = stringPreferencesKey("browser_tabs_by_profile_json")
+        val ACTIVE_BROWSER_TAB_BY_PROFILE_JSON = stringPreferencesKey("active_browser_tab_by_profile_json")
+        val LEGACY_PROFILE_PREFS_MIGRATED = booleanPreferencesKey("legacy_profile_prefs_migrated")
     }
 
     val preferencesFlow: Flow<AppPreferences> = context.dataStore.data.map { prefs ->
-        val quickLinks = prefs[Keys.QUICK_LINKS_JSON]?.let { raw ->
-            runCatching { json.decodeFromString<List<QuickLinkItem>>(raw) }.getOrNull()
-        } ?: emptyList()
+        val manualWarMap = decodeMap<String>(prefs[Keys.MANUAL_WAR_FACTION_BY_PROFILE_JSON])
+        val quickLinksMap = decodeMap<List<QuickLinkItem>>(prefs[Keys.QUICK_LINKS_BY_PROFILE_JSON])
+        val browserTabsMap = decodeMap<List<PersistedBrowserTab>>(prefs[Keys.BROWSER_TABS_BY_PROFILE_JSON])
+        val activeTabMap = decodeMap<String>(prefs[Keys.ACTIVE_BROWSER_TAB_BY_PROFILE_JSON])
 
         AppPreferences(
             alertsBarsEnabled = prefs[Keys.ALERTS_BARS] ?: true,
@@ -117,16 +147,74 @@ class SettingsStore(private val context: Context) {
             } ?: FlightAlertTiming.EARLIEST,
             ffLowThreshold = prefs[Keys.FF_LOW_THRESHOLD] ?: 2.0,
             ffHighThreshold = prefs[Keys.FF_HIGH_THRESHOLD] ?: 3.0,
-            manualWarFactionId = prefs[Keys.MANUAL_WAR_FACTION_ID] ?: "",
-            quickLinks = quickLinks,
+            manualWarFactionIdByProfile = manualWarMap,
+            quickLinksByProfile = quickLinksMap,
             backgroundStockSyncEnabled = prefs[Keys.BG_STOCK_SYNC] ?: true,
             backgroundFlightSyncEnabled = prefs[Keys.BG_FLIGHT_SYNC] ?: true,
             lastBackgroundSyncEpochMs = prefs[Keys.LAST_BG_SYNC_MS] ?: 0L,
-            lastBackgroundSyncSummary = prefs[Keys.LAST_BG_SYNC_SUMMARY] ?: ""
+            lastBackgroundSyncSummary = prefs[Keys.LAST_BG_SYNC_SUMMARY] ?: "",
+            browserTabsByProfile = browserTabsMap,
+            activeBrowserTabIdByProfile = activeTabMap
         )
     }
 
+    private inline fun <reified T> decodeMap(raw: String?): Map<String, T> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return runCatching { json.decodeFromString<Map<String, T>>(raw) }.getOrDefault(emptyMap())
+    }
+
     suspend fun current(): AppPreferences = preferencesFlow.first()
+
+    suspend fun migrateLegacyProfileScopedPrefsIfNeeded(activeProfileId: String?) {
+        if (activeProfileId.isNullOrBlank()) return
+        context.dataStore.edit { prefs ->
+            if (prefs[Keys.LEGACY_PROFILE_PREFS_MIGRATED] == true) return@edit
+
+            val legacyTabs = prefs[Keys.BROWSER_TABS_JSON]?.let { raw ->
+                runCatching { json.decodeFromString<List<PersistedBrowserTab>>(raw) }.getOrNull()
+            }.orEmpty()
+            val legacyActiveTab = prefs[Keys.ACTIVE_BROWSER_TAB_ID].orEmpty()
+            val legacyQuickLinks = prefs[Keys.QUICK_LINKS_JSON]?.let { raw ->
+                runCatching { json.decodeFromString<List<QuickLinkItem>>(raw) }.getOrNull()
+            }.orEmpty()
+            val legacyManualWar = prefs[Keys.MANUAL_WAR_FACTION_ID].orEmpty()
+
+            if (legacyTabs.isNotEmpty()) {
+                val map = decodeMap<List<PersistedBrowserTab>>(prefs[Keys.BROWSER_TABS_BY_PROFILE_JSON]).toMutableMap()
+                if (!map.containsKey(activeProfileId)) {
+                    map[activeProfileId] = legacyTabs
+                    prefs[Keys.BROWSER_TABS_BY_PROFILE_JSON] = json.encodeToString(map)
+                }
+            }
+            if (legacyActiveTab.isNotBlank()) {
+                val map = decodeMap<String>(prefs[Keys.ACTIVE_BROWSER_TAB_BY_PROFILE_JSON]).toMutableMap()
+                if (!map.containsKey(activeProfileId)) {
+                    map[activeProfileId] = legacyActiveTab
+                    prefs[Keys.ACTIVE_BROWSER_TAB_BY_PROFILE_JSON] = json.encodeToString(map)
+                }
+            }
+            if (legacyQuickLinks.isNotEmpty()) {
+                val map = decodeMap<List<QuickLinkItem>>(prefs[Keys.QUICK_LINKS_BY_PROFILE_JSON]).toMutableMap()
+                if (!map.containsKey(activeProfileId)) {
+                    map[activeProfileId] = legacyQuickLinks
+                    prefs[Keys.QUICK_LINKS_BY_PROFILE_JSON] = json.encodeToString(map)
+                }
+            }
+            if (legacyManualWar.isNotBlank()) {
+                val map = decodeMap<String>(prefs[Keys.MANUAL_WAR_FACTION_BY_PROFILE_JSON]).toMutableMap()
+                if (!map.containsKey(activeProfileId)) {
+                    map[activeProfileId] = legacyManualWar
+                    prefs[Keys.MANUAL_WAR_FACTION_BY_PROFILE_JSON] = json.encodeToString(map)
+                }
+            }
+
+            prefs.remove(Keys.BROWSER_TABS_JSON)
+            prefs.remove(Keys.ACTIVE_BROWSER_TAB_ID)
+            prefs.remove(Keys.QUICK_LINKS_JSON)
+            prefs.remove(Keys.MANUAL_WAR_FACTION_ID)
+            prefs[Keys.LEGACY_PROFILE_PREFS_MIGRATED] = true
+        }
+    }
 
     suspend fun setOnboardingCompleted(done: Boolean) {
         context.dataStore.edit { it[Keys.ONBOARDING_DONE] = done }
@@ -194,12 +282,22 @@ class SettingsStore(private val context: Context) {
         }
     }
 
-    suspend fun setManualWarFactionId(factionId: String) {
-        context.dataStore.edit { it[Keys.MANUAL_WAR_FACTION_ID] = factionId }
+    suspend fun setManualWarFactionId(profileId: String, factionId: String) {
+        if (profileId.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val map = decodeMap<String>(prefs[Keys.MANUAL_WAR_FACTION_BY_PROFILE_JSON]).toMutableMap()
+            if (factionId.isBlank()) map.remove(profileId) else map[profileId] = factionId
+            prefs[Keys.MANUAL_WAR_FACTION_BY_PROFILE_JSON] = json.encodeToString(map)
+        }
     }
 
-    suspend fun setQuickLinks(links: List<QuickLinkItem>) {
-        context.dataStore.edit { it[Keys.QUICK_LINKS_JSON] = json.encodeToString(links) }
+    suspend fun setQuickLinks(profileId: String, links: List<QuickLinkItem>) {
+        if (profileId.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val map = decodeMap<List<QuickLinkItem>>(prefs[Keys.QUICK_LINKS_BY_PROFILE_JSON]).toMutableMap()
+            map[profileId] = links
+            prefs[Keys.QUICK_LINKS_BY_PROFILE_JSON] = json.encodeToString(map)
+        }
     }
 
     suspend fun setBackgroundStockSync(enabled: Boolean) {
@@ -214,6 +312,41 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit {
             it[Keys.LAST_BG_SYNC_MS] = epochMs
             it[Keys.LAST_BG_SYNC_SUMMARY] = summary
+        }
+    }
+
+    suspend fun setBrowserTabs(profileId: String, tabs: List<PersistedBrowserTab>, activeTabId: String) {
+        if (profileId.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val tabsMap = decodeMap<List<PersistedBrowserTab>>(prefs[Keys.BROWSER_TABS_BY_PROFILE_JSON]).toMutableMap()
+            tabsMap[profileId] = tabs
+            prefs[Keys.BROWSER_TABS_BY_PROFILE_JSON] = json.encodeToString(tabsMap)
+
+            val activeMap = decodeMap<String>(prefs[Keys.ACTIVE_BROWSER_TAB_BY_PROFILE_JSON]).toMutableMap()
+            activeMap[profileId] = activeTabId
+            prefs[Keys.ACTIVE_BROWSER_TAB_BY_PROFILE_JSON] = json.encodeToString(activeMap)
+        }
+    }
+
+    suspend fun clearProfilePrefs(profileId: String) {
+        if (profileId.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val tabsMap = decodeMap<List<PersistedBrowserTab>>(prefs[Keys.BROWSER_TABS_BY_PROFILE_JSON]).toMutableMap()
+            if (tabsMap.remove(profileId) != null) {
+                prefs[Keys.BROWSER_TABS_BY_PROFILE_JSON] = json.encodeToString(tabsMap)
+            }
+            val activeMap = decodeMap<String>(prefs[Keys.ACTIVE_BROWSER_TAB_BY_PROFILE_JSON]).toMutableMap()
+            if (activeMap.remove(profileId) != null) {
+                prefs[Keys.ACTIVE_BROWSER_TAB_BY_PROFILE_JSON] = json.encodeToString(activeMap)
+            }
+            val linksMap = decodeMap<List<QuickLinkItem>>(prefs[Keys.QUICK_LINKS_BY_PROFILE_JSON]).toMutableMap()
+            if (linksMap.remove(profileId) != null) {
+                prefs[Keys.QUICK_LINKS_BY_PROFILE_JSON] = json.encodeToString(linksMap)
+            }
+            val warMap = decodeMap<String>(prefs[Keys.MANUAL_WAR_FACTION_BY_PROFILE_JSON]).toMutableMap()
+            if (warMap.remove(profileId) != null) {
+                prefs[Keys.MANUAL_WAR_FACTION_BY_PROFILE_JSON] = json.encodeToString(warMap)
+            }
         }
     }
 }

@@ -7,19 +7,35 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class BrowserNavigator {
-    private val _pendingInAppUrl = MutableStateFlow<String?>(null)
-    val pendingInAppUrl: StateFlow<String?> = _pendingInAppUrl.asStateFlow()
+data class BrowserOpenRequest(
+    val url: String,
+    val inNewTab: Boolean = true,
+    val switchToTab: Boolean = true
+)
 
-    fun requestInAppOpen(url: String) {
-        _pendingInAppUrl.value = url
+class BrowserNavigator {
+    private val _pendingRequest = MutableStateFlow<BrowserOpenRequest?>(null)
+    val pendingRequest: StateFlow<BrowserOpenRequest?> = _pendingRequest.asStateFlow()
+
+    fun requestInAppOpen(
+        url: String,
+        inNewTab: Boolean = true,
+        switchToTab: Boolean = true
+    ) {
+        _pendingRequest.value = BrowserOpenRequest(
+            url = url,
+            inNewTab = inNewTab,
+            switchToTab = switchToTab
+        )
     }
 
-    fun consumePendingUrl(): String? {
-        val current = _pendingInAppUrl.value
-        _pendingInAppUrl.value = null
+    fun consumePendingRequest(): BrowserOpenRequest? {
+        val current = _pendingRequest.value
+        _pendingRequest.value = null
         return current
     }
+
+    fun consumePendingUrl(): String? = consumePendingRequest()?.url
 
     fun openExternal(context: Context, url: String) {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {

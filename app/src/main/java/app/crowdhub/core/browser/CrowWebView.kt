@@ -4,6 +4,10 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.http.SslError
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
@@ -15,7 +19,10 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -42,9 +49,11 @@ data class WebViewController(
             false
         }
     }
+
     fun goForward() {
         if (webView.canGoForward()) webView.goForward()
     }
+
     fun reload() = webView.reload()
     fun evaluateJs(script: String, onResult: ((String?) -> Unit)? = null) {
         webView.evaluateJavascript(script) { res -> onResult?.invoke(res) }
@@ -71,6 +80,9 @@ private fun isChallengeUrl(url: String?): Boolean {
 @Composable
 fun CrowWebView(
     accountId: String,
+    profileId: String = accountId,
+    tabId: String,
+    isActiveTab: Boolean,
     initialUrl: String,
     preferInitialUrl: Boolean = false,
     allowedHosts: Set<String>,
@@ -87,6 +99,8 @@ fun CrowWebView(
     onPageLoadError: (WebLoadError?) -> Unit,
     onExternalUrlRequested: (String) -> Unit,
     onBlockedUrl: (String) -> Unit,
+    onLinkLongPressed: (String) -> Unit,
+    onOpenInNewTab: (String) -> Unit,
     onPageStartedScripts: (WebView, String) -> Unit,
     onPageFinishedScripts: (WebView, String) -> Unit,
     onWebMessage: (WebView, String) -> Unit,
@@ -97,14 +111,28 @@ fun CrowWebView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val webView = remember(accountId) {
+    val currentOnSaveStateBundle by rememberUpdatedState(onSaveStateBundle)
+    val currentOnControllerReady by rememberUpdatedState(onControllerReady)
+    val currentOnUrlChanged by rememberUpdatedState(onUrlChanged)
+    val currentOnTitleChanged by rememberUpdatedState(onTitleChanged)
+    val currentOnProgressChanged by rememberUpdatedState(onProgressChanged)
+    val currentOnPageLoadError by rememberUpdatedState(onPageLoadError)
+    val currentOnExternalUrlRequested by rememberUpdatedState(onExternalUrlRequested)
+    val currentOnBlockedUrl by rememberUpdatedState(onBlockedUrl)
+    val currentOnLinkLongPressed by rememberUpdatedState(onLinkLongPressed)
+    val currentOnOpenInNewTab by rememberUpdatedState(onOpenInNewTab)
+    val currentOnPageStartedScripts by rememberUpdatedState(onPageStartedScripts)
+    val currentOnPageFinishedScripts by rememberUpdatedState(onPageFinishedScripts)
+    val currentOnWebMessage by rememberUpdatedState(onWebMessage)
+
+    val webView = remember(profileId, accountId, tabId) {
         runCatching {
             WebView(context).apply {
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                webProfileManager.attach(this, accountId)
+                webProfileManager.attach(this, profileId)
 
                 settings.apply {
                     javaScriptEnabled = true
@@ -120,7 +148,7 @@ fun CrowWebView(
                     @Suppress("DEPRECATION")
                     allowUniversalAccessFromFileURLs = false
                     mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                    setSupportMultipleWindows(false)
+                    setSupportMultipleWindows(true)
                     setGeolocationEnabled(false)
                     builtInZoomControls = true
                     displayZoomControls = false
@@ -129,7 +157,31 @@ fun CrowWebView(
                 }
 
                 setDownloadListener { _, _, _, _, _ ->
-                    onBlockedUrl("File downloads are disabled in Crowd Hub")
+                    currentOnBlockedUrl("File downloads are disabled in Crowd Hub")
+                }
+
+                setOnLongClickListener { view ->
+                    val wv = view as? WebView ?: return@setOnLongClickListener false
+                    val hit = wv.hitTestResult
+                    val isAnchor = hit.type == WebView.HitTestResult.SRC_ANCHOR_TYPE ||
+                        hit.type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE
+                    if (!isAnchor) return@setOnLongClickListener false
+
+                    val fallbackExtra = if (hit.type == WebView.HitTestResult.SRC_ANCHOR_TYPE) {
+                        hit.extra
+                    } else {
+                        null
+                    }
+                    val handler = Handler(Looper.getMainLooper()) { msg ->
+                        val href = msg.data?.getString("url")?.takeIf { it.isNotBlank() } ?: fallbackExtra
+                        if (!href.isNullOrBlank()) {
+                            currentOnLinkLongPressed(href)
+                        }
+                        true
+                    }
+                    val hrefMsg = handler.obtainMessage()
+                    wv.requestFocusNodeHref(hrefMsg)
+                    true
                 }
 
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
@@ -142,7 +194,7 @@ fun CrowWebView(
                             val host = sourceOrigin.host?.lowercase()
                             if (host != null && allowedHosts.any { it.equals(host, ignoreCase = true) }) {
                                 val payload = message.data ?: return@addWebMessageListener
-                                onWebMessage(view, payload)
+                                currentOnWebMessage(view, payload)
                             }
                         }
                     }
@@ -162,13 +214,46 @@ fun CrowWebView(
 
                 webChromeClient = object : WebChromeClient() {
                     override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                        onProgressChanged(newProgress)
+                        currentOnProgressChanged(newProgress)
                     }
 
                     override fun onReceivedTitle(view: WebView?, title: String?) {
                         if (!title.isNullOrBlank()) {
-                            onTitleChanged(title)
+                            currentOnTitleChanged(title)
                         }
+                    }
+
+                    override fun onCreateWindow(
+                        view: WebView?,
+                        isDialog: Boolean,
+                        isUserGesture: Boolean,
+                        resultMsg: Message?
+                    ): Boolean {
+                        val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                        val tempWebView = WebView(context)
+                        tempWebView.webViewClient = object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(
+                                v: WebView?,
+                                request: WebResourceRequest?
+                            ): Boolean {
+                                val target = request?.url?.toString()
+                                if (!target.isNullOrBlank()) {
+                                    when (val dec = urlGuard.evaluate(target, isMainFrame = true)) {
+                                        UrlDecision.AllowInApp -> currentOnOpenInNewTab(target)
+                                        is UrlDecision.ConfirmExternal -> currentOnExternalUrlRequested(dec.url)
+                                        is UrlDecision.Block -> currentOnBlockedUrl(dec.reason)
+                                    }
+                                }
+                                v?.destroy()
+                                return true
+                            }
+                        }
+                        transport.webView = tempWebView
+                        resultMsg.sendToTarget()
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            runCatching { tempWebView.destroy() }
+                        }, 5_000L)
+                        return true
                     }
                 }
 
@@ -183,7 +268,7 @@ fun CrowWebView(
                             UrlDecision.AllowInApp -> false
                             is UrlDecision.ConfirmExternal -> {
                                 if (isMainFrame) {
-                                    onExternalUrlRequested(decision.url)
+                                    currentOnExternalUrlRequested(decision.url)
                                     true
                                 } else {
                                     false
@@ -191,7 +276,7 @@ fun CrowWebView(
                             }
                             is UrlDecision.Block -> {
                                 if (isMainFrame) {
-                                    onBlockedUrl(decision.reason)
+                                    currentOnBlockedUrl(decision.reason)
                                 }
                                 true
                             }
@@ -201,24 +286,24 @@ fun CrowWebView(
                     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                         super.onPageStarted(view, url, favicon)
                         if (view != null && !url.isNullOrBlank()) {
-                            onPageLoadError(null)
-                            onUrlChanged(url)
+                            currentOnPageLoadError(null)
+                            currentOnUrlChanged(url)
                             if (!isChallengeUrl(url)) {
                                 sessionMonitor.onPageVisited(url)
                             }
-                            onPageStartedScripts(view, url)
+                            currentOnPageStartedScripts(view, url)
                         }
                     }
 
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
                         if (view != null && !url.isNullOrBlank()) {
-                            onUrlChanged(url)
+                            currentOnUrlChanged(url)
                             if (!isChallengeUrl(url)) {
                                 sessionMonitor.onPageVisited(url)
                             }
-                            webProfileManager.flushCookies(accountId)
-                            onPageFinishedScripts(view, url)
+                            webProfileManager.flushCookies(profileId)
+                            currentOnPageFinishedScripts(view, url)
                         }
                     }
 
@@ -234,7 +319,7 @@ fun CrowWebView(
                                 ?: "Failed to load page"
                             val code = error?.errorCode
                             val msg = if (code != null) "$desc (code $code)" else desc
-                            onPageLoadError(WebLoadError(url = failingUrl, message = msg))
+                            currentOnPageLoadError(WebLoadError(url = failingUrl, message = msg))
                         }
                     }
 
@@ -245,7 +330,7 @@ fun CrowWebView(
                     ) {
                         handler?.cancel()
                         val failingUrl = error?.url ?: initialUrl
-                        onPageLoadError(
+                        currentOnPageLoadError(
                             WebLoadError(
                                 url = failingUrl,
                                 message = "TLS/SSL certificate error (code ${error?.primaryError ?: -1})."
@@ -257,7 +342,7 @@ fun CrowWebView(
                         view: WebView?,
                         detail: RenderProcessGoneDetail?
                     ): Boolean {
-                        onPageLoadError(
+                        currentOnPageLoadError(
                             WebLoadError(
                                 url = view?.url ?: initialUrl,
                                 message = "Browser renderer stopped unexpectedly. Tap Retry to reload."
@@ -275,8 +360,8 @@ fun CrowWebView(
                 if (restoredList == null || restoredList.size == 0) {
                     when (val decision = urlGuard.evaluate(initialUrl, isMainFrame = true)) {
                         UrlDecision.AllowInApp -> loadUrl(initialUrl)
-                        is UrlDecision.ConfirmExternal -> onExternalUrlRequested(decision.url)
-                        is UrlDecision.Block -> onBlockedUrl(decision.reason)
+                        is UrlDecision.ConfirmExternal -> currentOnExternalUrlRequested(decision.url)
+                        is UrlDecision.Block -> currentOnBlockedUrl(decision.reason)
                     }
                 }
             }
@@ -284,19 +369,31 @@ fun CrowWebView(
     }
 
     if (webView != null) {
+        LaunchedEffect(webView, isActiveTab) {
+            if (isActiveTab) {
+                webView.visibility = View.VISIBLE
+                webView.onResume()
+            } else {
+                webView.onPause()
+                webView.visibility = View.GONE
+            }
+        }
+
         DisposableEffect(lifecycleOwner, webView) {
-            onControllerReady(WebViewController(webView))
+            currentOnControllerReady(WebViewController(webView))
             val observer = LifecycleEventObserver { _, event ->
                 when (event) {
                     Lifecycle.Event.ON_PAUSE -> {
-                        webProfileManager.flushCookies(accountId)
+                        webProfileManager.flushCookies(profileId)
                         val b = Bundle()
                         webView.saveState(b)
-                        onSaveStateBundle(b)
+                        currentOnSaveStateBundle(b)
                         webView.onPause()
                     }
-                    Lifecycle.Event.ON_RESUME -> webView.onResume()
-                    Lifecycle.Event.ON_STOP -> webProfileManager.flushCookies(accountId)
+                    Lifecycle.Event.ON_RESUME -> {
+                        if (isActiveTab) webView.onResume()
+                    }
+                    Lifecycle.Event.ON_STOP -> webProfileManager.flushCookies(profileId)
                     else -> {}
                 }
             }
@@ -305,14 +402,17 @@ fun CrowWebView(
                 lifecycleOwner.lifecycle.removeObserver(observer)
                 val b = Bundle()
                 webView.saveState(b)
-                onSaveStateBundle(b)
-                webProfileManager.flushCookies(accountId)
+                currentOnSaveStateBundle(b)
+                webProfileManager.flushCookies(profileId)
                 webView.destroy()
             }
         }
 
         AndroidView(
             factory = { webView },
+            update = { view ->
+                view.visibility = if (isActiveTab) View.VISIBLE else View.GONE
+            },
             modifier = modifier
         )
     }

@@ -80,5 +80,29 @@ class FlightEstimatorTest {
         assertEquals(FlightConfidence.HIGH, est!!.confidence)
         assertEquals(5_000_000L, est.windowStartMs)
         assertEquals(5_000_000L, est.windowEndMs)
+        assertEquals(64, est.baseMinutesMin)
+        assertEquals(213, est.baseMinutesMax)
+    }
+
+    @Test
+    fun `known category and departure transition populate exact base duration and poll tolerance`() {
+        val est = estimator.estimate(
+            place = TravelPlace.SWITZERLAND,
+            direction = TravelDirection.OUT,
+            category = PlaneCategory.AIRSTRIP,
+            hasBook = false,
+            departObservedWindow = 10_000_000L to 10_030_000L,
+            firstSeenAtMs = 10_030_000L,
+            apiUntilSec = null,
+            nowMs = 10_100_000L
+        )
+        assertNotNull(est)
+        assertEquals(FlightConfidence.GREEN, est!!.confidence)
+        assertEquals(116, est.baseMinutesMin)
+        assertEquals(116, est.baseMinutesMax)
+        assertEquals(false, est.hasBook)
+        assertEquals(10_000_000L, est.departWindowStartMs)
+        assertEquals(10_030_000L, est.departWindowEndMs)
+        assertTrue(est.windowEndMs > est.windowStartMs)
     }
 }

@@ -115,11 +115,14 @@ class StocksViewModel(
         viewModelScope.launch {
             profileRepository.observeActiveState().collect { state ->
                 val prevId = _activeProfile.value.primaryAccount?.id
+                val prevProfileId = _activeProfile.value.profile?.id
                 _activeProfile.value = state
                 val acct = state.primaryAccount
-                if (acct != null && acct.id != prevId) {
+                if (acct != null && (acct.id != prevId || state.profile?.id != prevProfileId)) {
+                    rawStocks = emptyList()
                     rawHoldings = emptyList()
                     hasLoadedHoldings = false
+                    sparklines = emptyMap()
                     lastPortfolioError = null
                     launch {
                         stockRepository.observeWatches(acct.id).collect { w ->
@@ -161,6 +164,7 @@ class StocksViewModel(
         viewModelScope.launch {
             val state = _activeProfile.value
             val acct = state.primaryAccount ?: return@launch
+            val profileId = state.profile?.id ?: "default"
             if (state.accountStatus == AccountStatus.INVALID || state.accountStatus == AccountStatus.PAUSED) {
                 return@launch
             }
@@ -189,7 +193,7 @@ class StocksViewModel(
                 }
                 marketDeferred.await() to holdingsDeferred.await()
             }
-            sparklines = stockRepository.getAllRecent24hSnapshots()
+            sparklines = stockRepository.getAllRecent24hSnapshots(profileId)
 
             when (holdingsRes) {
                 is ApiResult.Success -> {
@@ -274,8 +278,10 @@ class StocksViewModel(
             )
     }
 
-    suspend fun loadHistory(stockId: Int, range: ChartRange): List<StockPricePoint> =
-        stockRepository.getHistory(stockId, range)
+    suspend fun loadHistory(stockId: Int, range: ChartRange): List<StockPricePoint> {
+        val profileId = _activeProfile.value.profile?.id ?: "default"
+        return stockRepository.getHistory(profileId, stockId, range)
+    }
 
     fun saveWatch(
         id: String?,

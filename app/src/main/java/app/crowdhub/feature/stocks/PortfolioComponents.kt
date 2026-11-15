@@ -40,12 +40,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.crowdhub.core.network.LocalTimeFormatter
 import app.crowdhub.core.ui.components.CrowCard
 import app.crowdhub.core.ui.theme.CrowColors
 import app.crowdhub.core.ui.theme.TabularNumberStyle
 import app.crowdhub.provider.torn.TornStock
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 private val ALLOCATION_PALETTE = listOf(
@@ -596,8 +595,6 @@ fun StockPositionDetailCard(
     position: OwnedStockPosition?,
     modifier: Modifier = Modifier
 ) {
-    val timeFmt = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
-
     CrowCard(
         borderColor = if (position != null) CrowColors.Sheen.copy(alpha = 0.45f) else CrowColors.Outline,
         modifier = modifier.testTag("stock_detail_position_card")
@@ -709,7 +706,7 @@ fun StockPositionDetailCard(
                             )
                             tx.timeBoughtSec?.let { sec ->
                                 Text(
-                                    text = timeFmt.format(Date(sec * 1_000L)),
+                                    text = LocalTimeFormatter.formatDate(sec * 1_000L),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = CrowColors.TextMuted
                                 )

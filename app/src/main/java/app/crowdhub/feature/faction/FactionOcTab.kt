@@ -420,6 +420,7 @@ private fun OcSlotRow(slot: TornOcSlot, isSelf: Boolean) {
             val playerLabel = when {
                 isSelf -> "${slot.userName ?: "You"} (You)"
                 slot.userName != null -> slot.userName
+                slot.userId != null -> "Unknown #${slot.userId}"
                 else -> "Open slot"
             }
             Text(

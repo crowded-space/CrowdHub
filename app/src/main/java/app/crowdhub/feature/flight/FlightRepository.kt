@@ -1,5 +1,6 @@
 package app.crowdhub.feature.flight
 
+import app.crowdhub.core.db.ActiveFlightEntity
 import app.crowdhub.core.db.FlightObservationEntity
 import app.crowdhub.core.db.PlaneTypeMapEntity
 import app.crowdhub.core.db.PlayerFlightProfileEntity
@@ -29,13 +30,61 @@ class FlightRepository(
     val estimator: FlightEstimator = FlightEstimator()
 ) {
     private val mutex = Mutex()
-    private val activeFlights = ConcurrentHashMap<Long, ActiveFlightTrack>()
-    private val recentlyLanded = ConcurrentHashMap<Long, Long>()
+    private val activeFlightsByProfile = ConcurrentHashMap<String, ConcurrentHashMap<Long, ActiveFlightTrack>>()
+    private val recentlyLandedByProfile = ConcurrentHashMap<String, ConcurrentHashMap<Long, Long>>()
+    private val hydratedProfiles = ConcurrentHashMap.newKeySet<String>()
     private val observedPlaneTypeCounts = ConcurrentHashMap<String, Int>()
     private val unknownPlaces = ConcurrentHashMap.newKeySet<String>()
 
+    private suspend fun ensureHydratedLocked(profileId: String) {
+        if (hydratedProfiles.contains(profileId)) return
+        val profileMap = activeFlightsByProfile.getOrPut(profileId) { ConcurrentHashMap() }
+        val stored = runCatching { dao.getAllActiveFlights(profileId) }.getOrDefault(emptyList())
+        for (row in stored) {
+            val place = runCatching { TravelPlace.valueOf(row.place) }.getOrDefault(TravelPlace.UNKNOWN)
+            val direction = runCatching { TravelDirection.valueOf(row.direction) }.getOrDefault(TravelDirection.UNKNOWN)
+            val window = if (row.departPrevPollMs != null && row.departDetectedMs != null) {
+                row.departPrevPollMs to row.departDetectedMs
+            } else {
+                null
+            }
+            profileMap.putIfAbsent(
+                row.playerId,
+                ActiveFlightTrack(
+                    playerId = row.playerId,
+                    direction = direction,
+                    place = place,
+                    planeTypeApi = row.planeTypeApi,
+                    departObservedWindow = window,
+                    firstSeenAtMs = row.firstSeenAtMs
+                )
+            )
+        }
+        hydratedProfiles.add(profileId)
+    }
+
+    suspend fun clearProfileState(profileId: String) {
+        mutex.withLock {
+            activeFlightsByProfile.remove(profileId)
+            recentlyLandedByProfile.remove(profileId)
+            hydratedProfiles.remove(profileId)
+        }
+    }
+
+    private fun ActiveFlightTrack.toEntity(profileId: String) = ActiveFlightEntity(
+        profileId = profileId,
+        playerId = playerId,
+        direction = direction.name,
+        place = place.name,
+        planeTypeApi = planeTypeApi,
+        departPrevPollMs = departObservedWindow?.first,
+        departDetectedMs = departObservedWindow?.second,
+        firstSeenAtMs = firstSeenAtMs
+    )
+
     fun observePlaneTypeMap(): Flow<List<PlaneTypeMapEntity>> = dao.observePlaneTypeMap()
-    fun observeRecentObservations(): Flow<List<FlightObservationEntity>> = dao.observeRecentObservations()
+    fun observeRecentObservations(profileId: String): Flow<List<FlightObservationEntity>> =
+        dao.observeRecentObservations(profileId)
 
     fun getObservedPlaneTypeCounts(): Map<String, Int> = observedPlaneTypeCounts.toMap()
     fun getUnknownPlaces(): Set<String> = unknownPlaces.toSet()
@@ -57,6 +106,7 @@ class FlightRepository(
     }
 
     suspend fun onTravelObserved(
+        profileId: String,
         playerId: Long,
         description: String,
         planeTypeApi: String?,
@@ -71,11 +121,18 @@ class FlightRepository(
         if (!planeTypeApi.isNullOrBlank()) {
             observedPlaneTypeCounts[planeTypeApi] = (observedPlaneTypeCounts[planeTypeApi] ?: 0) + 1
         }
+        var updatedTrack: ActiveFlightTrack? = null
         mutex.withLock {
-            recentlyLanded.remove(playerId)
-            val existing = activeFlights[playerId]
-            if (existing == null) {
-                activeFlights[playerId] = ActiveFlightTrack(
+            ensureHydratedLocked(profileId)
+            recentlyLandedByProfile[profileId]?.remove(playerId)
+            val profileFlights = activeFlightsByProfile.getOrPut(profileId) { ConcurrentHashMap() }
+            val existing = profileFlights[playerId]
+            val legChanged = existing != null && (
+                (parsed.place != TravelPlace.UNKNOWN && existing.place != parsed.place) ||
+                    (parsed.direction != TravelDirection.UNKNOWN && existing.direction != parsed.direction)
+                )
+            if (existing == null || legChanged) {
+                val track = ActiveFlightTrack(
                     playerId = playerId,
                     direction = parsed.direction,
                     place = parsed.place,
@@ -87,21 +144,45 @@ class FlightRepository(
                     },
                     firstSeenAtMs = detectedAtMs
                 )
-            } else if (!planeTypeApi.isNullOrBlank() && existing.planeTypeApi == null) {
-                activeFlights[playerId] = existing.copy(planeTypeApi = planeTypeApi)
+                profileFlights[playerId] = track
+                updatedTrack = track
+            } else {
+                val resolvedPlane = if (!planeTypeApi.isNullOrBlank() && existing.planeTypeApi == null) {
+                    planeTypeApi
+                } else {
+                    existing.planeTypeApi
+                }
+                val resolvedWindow = if (existing.departObservedWindow == null && departureObserved && prevPollAtMs != null) {
+                    prevPollAtMs to detectedAtMs
+                } else {
+                    existing.departObservedWindow
+                }
+                if (resolvedPlane != existing.planeTypeApi || resolvedWindow != existing.departObservedWindow) {
+                    val track = existing.copy(
+                        planeTypeApi = resolvedPlane,
+                        departObservedWindow = resolvedWindow
+                    )
+                    profileFlights[playerId] = track
+                    updatedTrack = track
+                }
             }
         }
+        updatedTrack?.let { runCatching { dao.upsertActiveFlight(it.toEntity(profileId)) } }
     }
 
     suspend fun onLanded(
+        profileId: String,
         playerId: Long,
         landedPrevPollAtMs: Long,
         landedDetectedAtMs: Long
     ) {
         val track = mutex.withLock {
-            recentlyLanded[playerId] = landedDetectedAtMs
-            activeFlights.remove(playerId)
-        } ?: return
+            ensureHydratedLocked(profileId)
+            recentlyLandedByProfile.getOrPut(profileId) { ConcurrentHashMap() }[playerId] = landedDetectedAtMs
+            activeFlightsByProfile[profileId]?.remove(playerId)
+        }
+        runCatching { dao.deleteActiveFlight(profileId, playerId) }
+        if (track == null) return
 
         val depart = track.departObservedWindow
         val obsMinMs = depart?.let { (landedPrevPollAtMs - it.second).coerceAtLeast(0L) }
@@ -116,6 +197,7 @@ class FlightRepository(
             if (inferredBook != null) {
                 dao.upsertFlightProfile(
                     PlayerFlightProfileEntity(
+                        profileId = profileId,
                         playerId = playerId,
                         hasBook = inferredBook,
                         lastObservedAt = landedDetectedAtMs
@@ -126,6 +208,7 @@ class FlightRepository(
 
         dao.insertObservation(
             FlightObservationEntity(
+                profileId = profileId,
                 playerId = playerId,
                 direction = if (track.direction == TravelDirection.RETURN) "RETURN" else "OUT",
                 place = track.place.name,
@@ -139,27 +222,31 @@ class FlightRepository(
                 inferredBook = inferredBook
             )
         )
-        dao.trimObservationsForPlayer(playerId)
+        dao.trimObservationsForPlayer(profileId, playerId)
         dao.pruneOldObservations(clock.nowEpochMs() - 30L * 86_400_000L)
     }
 
     suspend fun estimateForMember(
+        profileId: String,
         playerId: Long,
         description: String,
         planeTypeApi: String?,
         apiUntilSec: Long?
     ): FlightEstimate? {
         val nowMs = clock.nowEpochMs()
-        val track = activeFlights[playerId]
+        val track = mutex.withLock {
+            ensureHydratedLocked(profileId)
+            activeFlightsByProfile[profileId]?.get(playerId)
+        }
         val parsed = FlightTable.parseDescription(description)
-        val place = track?.place ?: parsed.place
-        val direction = track?.direction ?: parsed.direction
+        val place = track?.place?.takeIf { it != TravelPlace.UNKNOWN } ?: parsed.place
+        val direction = track?.direction?.takeIf { it != TravelDirection.UNKNOWN } ?: parsed.direction
         val resolvedPlaneType = planeTypeApi ?: track?.planeTypeApi
 
         val map = dao.getPlaneTypeMap().associateBy { it.apiValue }
         val category = resolvedPlaneType?.let { resolveCategory(map, it) } ?: PlaneCategory.UNKNOWN
 
-        val hasBook = validBookStatus(dao.getFlightProfile(playerId), nowMs)
+        val hasBook = validBookStatus(dao.getFlightProfile(profileId, playerId), nowMs)
 
         return estimator.estimate(
             place = place,
@@ -173,14 +260,14 @@ class FlightRepository(
         )
     }
 
-    fun getPostLandingGraceEndsAtMs(playerId: Long): Long? {
-        val landedAt = recentlyLanded[playerId] ?: return null
+    fun getPostLandingGraceEndsAtMs(profileId: String, playerId: Long): Long? {
+        val landedAt = recentlyLandedByProfile[profileId]?.get(playerId) ?: return null
         val endsAt = landedAt + 15_000L
         return if (endsAt > clock.nowEpochMs()) endsAt else null
     }
 
-    suspend fun getObservationsForPlayer(playerId: Long): List<FlightObservationEntity> =
-        dao.getObservationsForPlayer(playerId)
+    suspend fun getObservationsForPlayer(profileId: String, playerId: Long): List<FlightObservationEntity> =
+        dao.getObservationsForPlayer(profileId, playerId)
 
     private fun resolveCategory(
         userMap: Map<String, PlaneTypeMapEntity>,

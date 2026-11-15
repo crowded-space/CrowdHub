@@ -283,6 +283,24 @@ data class TornOtherProfile(
     val factionName: String?
 )
 
+enum class TornUserListCategory(val apiValue: String, val label: String) {
+    FRIENDS("friends", "Friends"),
+    TARGETS("targets", "Targets"),
+    ENEMIES("enemies", "Enemies")
+}
+
+data class TornUserListEntry(
+    val playerId: Long,
+    val name: String,
+    val level: Int?,
+    val daysInTorn: Int?,
+    val note: String?,
+    val status: TornStatus,
+    val lastActionStatus: String?,
+    val lastActionRelative: String?,
+    val lastActionTimestampSec: Long?
+)
+
 object TornMappers {
     val json = Json {
         ignoreUnknownKeys = true
@@ -927,7 +945,7 @@ object TornMappers {
             position = positionLabel,
             positionId = slot.positionId ?: slot.id,
             userId = uid,
-            userName = slot.user?.name?.takeIf { it.isNotBlank() } ?: uid?.let { "Player $it" },
+            userName = slot.user?.name?.takeIf { it.isNotBlank() },
             status = status,
             checkpointPassRate = cpr,
             itemRequirementName = slot.itemRequirement?.name?.takeIf { it.isNotBlank() },
@@ -936,6 +954,42 @@ object TornMappers {
             joinedAtSec = slot.user?.joinedAt?.takeIf { it > 0L },
             progress = slot.user?.progress
         )
+    }
+
+    fun mapUserList(rawJson: String): List<TornUserListEntry> {
+        val dto = runCatching { json.decodeFromString<TornUserListResponseDto>(rawJson) }.getOrNull() ?: return emptyList()
+        val container = dto.list ?: dto.friends ?: dto.targets ?: dto.enemies ?: return emptyList()
+        val parsed = mutableListOf<Pair<Long?, TornUserListItemDto>>()
+        when (container) {
+            is JsonArray -> {
+                for (el in container) {
+                    val item = runCatching { json.decodeFromJsonElement<TornUserListItemDto>(el) }.getOrNull() ?: continue
+                    parsed += (item.id ?: item.userId ?: item.playerId) to item
+                }
+            }
+            is JsonObject -> {
+                for ((key, el) in container.entries) {
+                    val item = runCatching { json.decodeFromJsonElement<TornUserListItemDto>(el) }.getOrNull() ?: continue
+                    parsed += (item.id ?: item.userId ?: item.playerId ?: key.toLongOrNull()) to item
+                }
+            }
+            else -> {}
+        }
+        return parsed.mapNotNull { (resolvedId, item) ->
+            val pid = resolvedId?.takeIf { it > 0L } ?: return@mapNotNull null
+            val name = item.name?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            TornUserListEntry(
+                playerId = pid,
+                name = name,
+                level = item.level,
+                daysInTorn = item.daysInTorn,
+                note = (item.note ?: item.description)?.trim()?.takeIf { it.isNotBlank() },
+                status = mapStatus(item.status),
+                lastActionStatus = item.lastAction?.status?.takeIf { it.isNotBlank() },
+                lastActionRelative = item.lastAction?.relative?.takeIf { it.isNotBlank() },
+                lastActionTimestampSec = item.lastAction?.timestamp?.takeIf { it > 0L }
+            )
+        }
     }
 
     private fun crimeStatusSortOrder(status: String): Int = when (status.lowercase()) {

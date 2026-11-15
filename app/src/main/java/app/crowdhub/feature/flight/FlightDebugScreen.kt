@@ -50,11 +50,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun FlightDebugScreen(
     flightRepository: FlightRepository,
+    profileId: String = "default",
     onBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val mappings by flightRepository.observePlaneTypeMap().collectAsStateWithLifecycle(emptyList())
-    val observations by flightRepository.observeRecentObservations().collectAsStateWithLifecycle(emptyList())
+    val observations by flightRepository.observeRecentObservations(profileId).collectAsStateWithLifecycle(emptyList())
     val observedCounts = remember(observations) { flightRepository.getObservedPlaneTypeCounts() }
 
     var newApiValue by remember { mutableStateOf("") }

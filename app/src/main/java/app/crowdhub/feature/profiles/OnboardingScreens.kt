@@ -118,7 +118,7 @@ fun OnboardingScreen(
                     CircularProgressIndicator(color = CrowColors.Sheen)
                 }
                 OnboardingStep.WELCOME -> {
-                    CrowdWordmark()
+                    CrowdWordmark(isHero = true)
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = "Watch the flock.",

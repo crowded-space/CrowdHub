@@ -45,7 +45,8 @@ class ProfileRepository(
     private val responseCache: ResponseCache,
     private val settingsStore: SettingsStore,
     private val clock: Clock,
-    private val onWipeWebProfile: suspend (String) -> Unit
+    private val onWipeWebProfile: suspend (String) -> Unit,
+    private val onClearProfileFlightState: suspend (String) -> Unit = {}
 ) {
     private val profileDao = db.profileDao()
     private val accountDao = db.providerAccountDao()
@@ -74,6 +75,12 @@ class ProfileRepository(
     suspend fun getActiveAccount(): ProviderAccountEntity? {
         val active = profileDao.getActiveProfile() ?: return null
         return accountDao.getPrimaryForProfile(active.id)
+    }
+
+    suspend fun resolveProfileIdForAccount(accountId: String): String {
+        return accountDao.getById(accountId)?.profileId
+            ?: profileDao.getActiveProfile()?.id
+            ?: "default"
     }
 
     suspend fun determineStartStep(): OnboardingStep {
@@ -272,6 +279,18 @@ class ProfileRepository(
         for (acct in accounts) {
             wipeAccountData(acct.id)
         }
+        responseCache.invalidateProfile(profileId)
+        db.playerNameCacheDao().deleteForProfile(profileId)
+        db.ffCacheDao().clearForProfile(profileId)
+        db.stockDao().clearSnapshotsForProfile(profileId)
+        db.warAndFlightDao().clearSnapshotsForProfile(profileId)
+        db.warAndFlightDao().clearObservationsForProfile(profileId)
+        db.warAndFlightDao().clearFlightProfilesForProfile(profileId)
+        db.warAndFlightDao().clearActiveFlightsForProfile(profileId)
+        onClearProfileFlightState(profileId)
+        settingsStore.clearProfilePrefs(profileId)
+        onWipeWebProfile(profileId)
+
         profileDao.deleteById(profileId)
         val remaining = profileDao.getActiveProfile()
         if (remaining == null) {
@@ -296,7 +315,5 @@ class ProfileRepository(
         db.targetDao().deleteTargetsForAccount(accountId)
         db.targetDao().clearHospitalCapturesForAccount(accountId)
         db.connectorLinkDao().deleteForAccount(accountId)
-        db.ffCacheDao().clearAll()
-        onWipeWebProfile(accountId)
     }
 }

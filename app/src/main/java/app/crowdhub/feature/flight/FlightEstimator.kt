@@ -22,7 +22,15 @@ data class FlightEstimate(
     val confidence: FlightConfidence,
     val isDelayed: Boolean,
     val overdueByMs: Long,
-    val usedApiUntil: Boolean
+    val usedApiUntil: Boolean,
+    val baseMinutesMin: Int? = null,
+    val baseMinutesMax: Int? = null,
+    val hasBook: Boolean? = null,
+    val departWindowStartMs: Long? = null,
+    val departWindowEndMs: Long? = null,
+    val firstSeenAtMs: Long? = null,
+    val minDurationMs: Long? = null,
+    val maxDurationMs: Long? = null
 )
 
 class FlightEstimator {
@@ -36,6 +44,15 @@ class FlightEstimator {
         apiUntilSec: Long?,
         nowMs: Long
     ): FlightEstimate? {
+        val allMins = FlightTable.allCategoryMinutes(place)
+        val knownBaseMin = if (category != PlaneCategory.UNKNOWN) {
+            FlightTable.baseMinutes(place, category)
+        } else {
+            null
+        }
+        val baseMin = knownBaseMin ?: allMins?.minOrNull()
+        val baseMax = knownBaseMin ?: allMins?.maxOrNull()
+
         if (apiUntilSec != null && apiUntilSec * 1_000L > nowMs) {
             val untilMs = apiUntilSec * 1_000L
             return FlightEstimate(
@@ -47,7 +64,13 @@ class FlightEstimator {
                 confidence = FlightConfidence.HIGH,
                 isDelayed = false,
                 overdueByMs = 0L,
-                usedApiUntil = true
+                usedApiUntil = true,
+                baseMinutesMin = baseMin,
+                baseMinutesMax = baseMax,
+                hasBook = hasBook,
+                departWindowStartMs = departObservedWindow?.first,
+                departWindowEndMs = departObservedWindow?.second,
+                firstSeenAtMs = firstSeenAtMs
             )
         }
 
@@ -61,15 +84,19 @@ class FlightEstimator {
                 confidence = FlightConfidence.GRAY,
                 isDelayed = false,
                 overdueByMs = 0L,
-                usedApiUntil = false
+                usedApiUntil = false,
+                hasBook = hasBook,
+                departWindowStartMs = departObservedWindow?.first,
+                departWindowEndMs = departObservedWindow?.second,
+                firstSeenAtMs = firstSeenAtMs
             )
         }
 
-        val allMins = FlightTable.allCategoryMinutes(place) ?: return null
+        val resolvedAllMins = allMins ?: return null
         val candidateBaseMins = if (category != PlaneCategory.UNKNOWN) {
             listOfNotNull(FlightTable.baseMinutes(place, category))
         } else {
-            allMins.toList()
+            resolvedAllMins.toList()
         }
         if (candidateBaseMins.isEmpty()) return null
 
@@ -124,7 +151,15 @@ class FlightEstimator {
             confidence = baseConfidence,
             isDelayed = isDelayed,
             overdueByMs = overdueMs.coerceAtLeast(0L),
-            usedApiUntil = false
+            usedApiUntil = false,
+            baseMinutesMin = baseMin,
+            baseMinutesMax = baseMax,
+            hasBook = hasBook,
+            departWindowStartMs = departObservedWindow?.first,
+            departWindowEndMs = departObservedWindow?.second,
+            firstSeenAtMs = firstSeenAtMs,
+            minDurationMs = durMinMs,
+            maxDurationMs = durMaxMs
         )
     }
 

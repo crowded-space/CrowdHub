@@ -171,4 +171,238 @@ object Migrations {
             )
         }
     }
+
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `active_flight` (
+                    `playerId` INTEGER NOT NULL,
+                    `direction` TEXT NOT NULL,
+                    `place` TEXT NOT NULL,
+                    `planeTypeApi` TEXT,
+                    `departPrevPollMs` INTEGER,
+                    `departDetectedMs` INTEGER,
+                    `firstSeenAtMs` INTEGER NOT NULL,
+                    PRIMARY KEY(`playerId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val activeProfileId = db.query(
+                "SELECT id FROM `profile` WHERE `isActive` = 1 LIMIT 1"
+            ).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            } ?: db.query(
+                "SELECT id FROM `profile` ORDER BY `createdAt` ASC LIMIT 1"
+            ).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            } ?: "default"
+            val escapedProfile = activeProfileId.replace("'", "''")
+
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `player_name_cache` (
+                    `profileId` TEXT NOT NULL,
+                    `playerId` INTEGER NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`profileId`, `playerId`)
+                )
+                """.trimIndent()
+            )
+
+            // 1. cache_entry -> add profileId and index
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `cache_entry_new` (
+                    `key` TEXT NOT NULL,
+                    `profileId` TEXT NOT NULL,
+                    `body` TEXT NOT NULL,
+                    `fetchedAt` INTEGER NOT NULL,
+                    `ttlMs` INTEGER NOT NULL,
+                    PRIMARY KEY(`key`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT OR REPLACE INTO `cache_entry_new` (`key`, `profileId`, `body`, `fetchedAt`, `ttlMs`)
+                SELECT
+                    c.`key`,
+                    COALESCE(
+                        (SELECT pa.`profileId` FROM `provider_account` pa WHERE c.`key` LIKE pa.`id` || '|%' LIMIT 1),
+                        '$escapedProfile'
+                    ),
+                    c.`body`,
+                    c.`fetchedAt`,
+                    c.`ttlMs`
+                FROM `cache_entry` c
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `cache_entry`")
+            db.execSQL("ALTER TABLE `cache_entry_new` RENAME TO `cache_entry`")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_cache_entry_profileId` ON `cache_entry` (`profileId`)")
+
+            // 2. ff_cache -> composite primary key (profileId, playerId)
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `ff_cache_new` (
+                    `profileId` TEXT NOT NULL,
+                    `playerId` INTEGER NOT NULL,
+                    `fairFight` REAL,
+                    `bsEstimate` INTEGER,
+                    `bsHuman` TEXT,
+                    `lastUpdatedSec` INTEGER,
+                    `fetchedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`profileId`, `playerId`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT OR REPLACE INTO `ff_cache_new` (`profileId`, `playerId`, `fairFight`, `bsEstimate`, `bsHuman`, `lastUpdatedSec`, `fetchedAt`)
+                SELECT '$escapedProfile', `playerId`, `fairFight`, `bsEstimate`, `bsHuman`, `lastUpdatedSec`, `fetchedAt`
+                FROM `ff_cache`
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `ff_cache`")
+            db.execSQL("ALTER TABLE `ff_cache_new` RENAME TO `ff_cache`")
+
+            // 3. stock_snapshot -> add profileId + composite index
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `stock_snapshot_new` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `profileId` TEXT NOT NULL,
+                    `stockId` INTEGER NOT NULL,
+                    `ts` INTEGER NOT NULL,
+                    `price` REAL NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO `stock_snapshot_new` (`id`, `profileId`, `stockId`, `ts`, `price`)
+                SELECT `id`, '$escapedProfile', `stockId`, `ts`, `price`
+                FROM `stock_snapshot`
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `stock_snapshot`")
+            db.execSQL("ALTER TABLE `stock_snapshot_new` RENAME TO `stock_snapshot`")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_stock_snapshot_profileId_stockId_ts` ON `stock_snapshot` (`profileId`, `stockId`, `ts`)")
+
+            // 4. member_snapshot -> composite primary key (profileId, factionId, playerId)
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `member_snapshot_new` (
+                    `profileId` TEXT NOT NULL,
+                    `factionId` INTEGER NOT NULL,
+                    `playerId` INTEGER NOT NULL,
+                    `ts` INTEGER NOT NULL,
+                    `state` TEXT NOT NULL,
+                    `descriptionHash` TEXT NOT NULL,
+                    `untilSec` INTEGER,
+                    `planeType` TEXT,
+                    `lastActionStatus` TEXT,
+                    `lastActionSec` INTEGER,
+                    `level` INTEGER,
+                    PRIMARY KEY(`profileId`, `factionId`, `playerId`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT OR REPLACE INTO `member_snapshot_new` (`profileId`, `factionId`, `playerId`, `ts`, `state`, `descriptionHash`, `untilSec`, `planeType`, `lastActionStatus`, `lastActionSec`, `level`)
+                SELECT '$escapedProfile', `factionId`, `playerId`, `ts`, `state`, `descriptionHash`, `untilSec`, `planeType`, `lastActionStatus`, `lastActionSec`, `level`
+                FROM `member_snapshot`
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `member_snapshot`")
+            db.execSQL("ALTER TABLE `member_snapshot_new` RENAME TO `member_snapshot`")
+
+            // 5. flight_observation -> add profileId + composite index
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `flight_observation_new` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `profileId` TEXT NOT NULL,
+                    `playerId` INTEGER NOT NULL,
+                    `direction` TEXT NOT NULL,
+                    `place` TEXT NOT NULL,
+                    `planeType` TEXT,
+                    `prevPollAt` INTEGER,
+                    `detectedAt` INTEGER,
+                    `landedPrevPollAt` INTEGER,
+                    `landedDetectedAt` INTEGER,
+                    `observedMinMs` INTEGER,
+                    `observedMaxMs` INTEGER,
+                    `inferredBook` INTEGER
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO `flight_observation_new` (`id`, `profileId`, `playerId`, `direction`, `place`, `planeType`, `prevPollAt`, `detectedAt`, `landedPrevPollAt`, `landedDetectedAt`, `observedMinMs`, `observedMaxMs`, `inferredBook`)
+                SELECT `id`, '$escapedProfile', `playerId`, `direction`, `place`, `planeType`, `prevPollAt`, `detectedAt`, `landedPrevPollAt`, `landedDetectedAt`, `observedMinMs`, `observedMaxMs`, `inferredBook`
+                FROM `flight_observation`
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `flight_observation`")
+            db.execSQL("ALTER TABLE `flight_observation_new` RENAME TO `flight_observation`")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_flight_observation_profileId_playerId_detectedAt` ON `flight_observation` (`profileId`, `playerId`, `detectedAt`)")
+
+            // 6. player_flight_profile -> composite primary key (profileId, playerId)
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `player_flight_profile_new` (
+                    `profileId` TEXT NOT NULL,
+                    `playerId` INTEGER NOT NULL,
+                    `hasBook` INTEGER,
+                    `lastObservedAt` INTEGER,
+                    PRIMARY KEY(`profileId`, `playerId`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT OR REPLACE INTO `player_flight_profile_new` (`profileId`, `playerId`, `hasBook`, `lastObservedAt`)
+                SELECT '$escapedProfile', `playerId`, `hasBook`, `lastObservedAt`
+                FROM `player_flight_profile`
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `player_flight_profile`")
+            db.execSQL("ALTER TABLE `player_flight_profile_new` RENAME TO `player_flight_profile`")
+
+            // 7. active_flight -> composite primary key (profileId, playerId)
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `active_flight_new` (
+                    `profileId` TEXT NOT NULL,
+                    `playerId` INTEGER NOT NULL,
+                    `direction` TEXT NOT NULL,
+                    `place` TEXT NOT NULL,
+                    `planeTypeApi` TEXT,
+                    `departPrevPollMs` INTEGER,
+                    `departDetectedMs` INTEGER,
+                    `firstSeenAtMs` INTEGER NOT NULL,
+                    PRIMARY KEY(`profileId`, `playerId`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT OR REPLACE INTO `active_flight_new` (`profileId`, `playerId`, `direction`, `place`, `planeTypeApi`, `departPrevPollMs`, `departDetectedMs`, `firstSeenAtMs`)
+                SELECT '$escapedProfile', `playerId`, `direction`, `place`, `planeTypeApi`, `departPrevPollMs`, `departDetectedMs`, `firstSeenAtMs`
+                FROM `active_flight`
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `active_flight`")
+            db.execSQL("ALTER TABLE `active_flight_new` RENAME TO `active_flight`")
+        }
+    }
 }

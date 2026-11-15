@@ -1,11 +1,17 @@
 package app.crowdhub.provider.torn
 
-import android.net.Uri
+import java.net.URI
+import java.net.URLDecoder
 
 object TornUrls {
     const val BASE_WEB = "https://www.torn.com"
     const val HOME = "https://www.torn.com/index.php"
     const val HOSPITAL_LIST = "https://www.torn.com/hospitalview.php"
+    const val FACTION = "https://www.torn.com/factions.php"
+    const val TRAVEL = "https://www.torn.com/page.php?sid=travel"
+    const val GYM = "https://www.torn.com/page.php?sid=gym"
+    const val CRIMES = "https://www.torn.com/page.php?sid=crimes"
+    const val CITY = "https://www.torn.com/city.php"
     const val API_DOCS = "https://www.torn.com/api.html"
     // VERIFY: Torn API key creation tab anchor
     const val API_KEY_PREFS = "https://www.torn.com/preferences.php#tab=api"
@@ -32,7 +38,7 @@ object TornUrls {
 
     fun attack(playerId: Long): String {
         require(playerId > 0L) { "Invalid playerId" }
-        return "https://www.torn.com/loader.php?sid=attack&user2ID=$playerId"
+        return "https://www.torn.com/page.php?sid=attack&user2ID=$playerId"
     }
 
     fun attackFromRawId(rawId: String): String? {
@@ -44,16 +50,16 @@ object TornUrls {
     }
 
     fun isLoginUrl(url: String): Boolean {
-        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
         val host = uri.host?.lowercase() ?: return false
         if (host !in ALLOWED_WEB_HOSTS) return false
         val path = uri.path?.lowercase().orEmpty()
-        val sid = runCatching { uri.getQueryParameter("sid") }.getOrNull()?.lowercase()
+        val sid = extractQueryParam(uri.rawQuery, "sid")?.lowercase()
         return path.contains("login") || path.contains("authenticate") || sid == "auth"
     }
 
     fun isHomeUrl(url: String): Boolean {
-        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
         val host = uri.host?.lowercase() ?: return false
         if (host !in ALLOWED_WEB_HOSTS) return false
         val path = uri.path?.lowercase().orEmpty()
@@ -61,9 +67,24 @@ object TornUrls {
     }
 
     fun isHospitalListUrl(url: String): Boolean {
-        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
         val host = uri.host?.lowercase() ?: return false
         if (host !in ALLOWED_WEB_HOSTS) return false
-        return uri.path?.lowercase()?.contains("hospitalview") == true
+        val path = uri.path?.lowercase().orEmpty()
+        val sid = extractQueryParam(uri.rawQuery, "sid")?.lowercase()
+        return path.contains("hospitalview") || sid == "hospital"
+    }
+
+    private fun extractQueryParam(rawQuery: String?, key: String): String? {
+        if (rawQuery.isNullOrBlank()) return null
+        return rawQuery.split('&').firstNotNullOfOrNull { pair ->
+            val idx = pair.indexOf('=')
+            val k = if (idx >= 0) pair.substring(0, idx) else pair
+            if (k.equals(key, ignoreCase = true) && idx >= 0) {
+                runCatching { URLDecoder.decode(pair.substring(idx + 1), "UTF-8") }.getOrNull()
+            } else {
+                null
+            }
+        }
     }
 }

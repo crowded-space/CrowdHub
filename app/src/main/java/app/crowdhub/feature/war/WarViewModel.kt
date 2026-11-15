@@ -173,7 +173,8 @@ class WarViewModel(
     private val alertEngine: AlertEngine,
     private val targetDao: TargetDao,
     private val settingsStore: SettingsStore,
-    private val clock: Clock
+    private val clock: Clock,
+    private val playerNameCache: app.crowdhub.core.profile.PlayerNameCache? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<WarUiState>(WarUiState.Loading)
@@ -214,9 +215,10 @@ class WarViewModel(
         viewModelScope.launch {
             profileRepository.observeActiveState().collect { state ->
                 val prevId = _activeProfile.value.primaryAccount?.id
+                val prevProfileId = _activeProfile.value.profile?.id
                 _activeProfile.value = state
                 val acct = state.primaryAccount
-                if (acct != null && acct.id != prevId) {
+                if (acct != null && (acct.id != prevId || state.profile?.id != prevProfileId)) {
                     resetAccountState()
                     launch {
                         stakeoutManager.observeStakeouts(acct.id).collect { list ->
@@ -255,8 +257,9 @@ class WarViewModel(
     }
 
     fun setManualFactionId(factionIdStr: String) {
+        val profileId = _activeProfile.value.profile?.id ?: return
         viewModelScope.launch {
-            settingsStore.setManualWarFactionId(factionIdStr.trim())
+            settingsStore.setManualWarFactionId(profileId, factionIdStr.trim())
             refresh(forceRefresh = true)
         }
     }
@@ -382,8 +385,9 @@ class WarViewModel(
             }
 
             val prefs: AppPreferences = settingsStore.current()
+            val profileId = state.profile?.id ?: "default"
             val priority = if (prefs.watchModeActive) RequestPriority.WATCH else RequestPriority.USER
-            val manualId = prefs.manualWarFactionId.trim().toLongOrNull()?.takeIf { it > 0L }
+            val manualId = prefs.manualWarFactionIdFor(profileId).trim().toLongOrNull()?.takeIf { it > 0L }
 
             val ownFactionRes = tornApi.getOwnFactionId(acct.id, priority, forceRefresh)
             var staleNotice: String? = null
@@ -559,12 +563,14 @@ class WarViewModel(
         nowSec: Long
     ): List<WarMemberRowModel> {
         if (members.isEmpty()) return emptyList()
+        val profileId = _activeProfile.value.profile?.id ?: "default"
         val qf = _quickFilters.value
         val ef = _extraFilters.value
 
         val enriched = members.map { member ->
             val flightEst = if (member.status.state == StatusKind.TRAVELING) {
                 flightRepository.estimateForMember(
+                    profileId = profileId,
                     playerId = member.playerId,
                     description = member.status.description,
                     planeTypeApi = member.status.planeImageType,
@@ -576,7 +582,7 @@ class WarViewModel(
                 member = member,
                 ffStats = if (ffEnabled) ffMap[member.playerId] else null,
                 flightEstimate = flightEst,
-                postLandingGraceEndMs = flightRepository.getPostLandingGraceEndsAtMs(member.playerId),
+                postLandingGraceEndMs = flightRepository.getPostLandingGraceEndsAtMs(profileId, member.playerId),
                 stakeout = stakeoutsMap[member.playerId]
             )
         }
@@ -656,7 +662,8 @@ class WarViewModel(
         private val alertEngine: AlertEngine,
         private val targetDao: TargetDao,
         private val settingsStore: SettingsStore,
-        private val clock: Clock
+        private val clock: Clock,
+        private val playerNameCache: app.crowdhub.core.profile.PlayerNameCache? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -669,7 +676,8 @@ class WarViewModel(
                 alertEngine,
                 targetDao,
                 settingsStore,
-                clock
+                clock,
+                playerNameCache
             ) as T
         }
     }

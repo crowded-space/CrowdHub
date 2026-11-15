@@ -62,6 +62,7 @@ import app.crowdhub.core.ui.components.LoadingView
 import app.crowdhub.core.ui.components.OfflineBanner
 import app.crowdhub.core.ui.theme.CrowColors
 import app.crowdhub.feature.browser.AttackNavigator
+import app.crowdhub.feature.flight.FlightChip
 import app.crowdhub.provider.torn.TornUrls
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -86,11 +87,14 @@ fun WarScreen(
     val quickFilters by viewModel.quickFilters.collectAsStateWithLifecycle()
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val extraFilters by viewModel.extraFilters.collectAsStateWithLifecycle()
+    val activeProfile by viewModel.activeProfile.collectAsStateWithLifecycle()
     val prefs by settingsStore.preferencesFlow.collectAsStateWithLifecycle(AppPreferences())
+    val activeProfileId = activeProfile.profile?.id.orEmpty()
+    val manualFactionPref = prefs.manualWarFactionIdFor(activeProfileId)
 
     var showFiltersSheet by remember { mutableStateOf(false) }
     var showManualFactionDialog by remember { mutableStateOf(false) }
-    var manualFactionInput by remember { mutableStateOf(prefs.manualWarFactionId) }
+    var manualFactionInput by remember(activeProfileId) { mutableStateOf(manualFactionPref) }
     var detailRow by remember { mutableStateOf<Pair<WarMemberRowModel, String?>?>(null) }
 
     LaunchedEffect(openFiltersRequest) {
@@ -170,7 +174,7 @@ fun WarScreen(
                         fetchedAtMs = state.fetchedAtMs,
                         clock = clock,
                         onChangeStakeout = {
-                            manualFactionInput = prefs.manualWarFactionId
+                            manualFactionInput = manualFactionPref
                             showManualFactionDialog = true
                         },
                         onClearManualStakeout = {
@@ -482,6 +486,9 @@ fun WarScreen(
                 }
                 Text("Status: ${row.member.status.description}", color = CrowColors.TextMuted)
                 Text("Last action: ${row.member.lastActionStatus ?: "—"} (${row.member.lastActionRelative ?: "—"})", color = CrowColors.TextMuted)
+                row.flightEstimate?.let { est ->
+                    FlightChip(estimate = est, clock = clock)
+                }
 
                 row.stakeout?.let { stake ->
                     Spacer(Modifier.height(4.dp))
@@ -511,7 +518,7 @@ fun WarScreen(
                     ) { Text("Add to targets") }
                     OutlinedButton(
                         onClick = {
-                            browserNavigator.requestInAppOpen(TornUrls.profile(row.member.playerId))
+                            browserNavigator.requestInAppOpen(TornUrls.profile(row.member.playerId), inNewTab = true, switchToTab = true)
                             detailRow = null
                             onNavigateToBrowser()
                         },

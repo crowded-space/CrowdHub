@@ -60,6 +60,8 @@ fun DashboardScreen(
     clock: Clock,
     onOpenAccount: (String) -> Unit,
     onOpenBrowserHome: () -> Unit,
+    onOpenGym: () -> Unit = {},
+    onOpenCrimes: () -> Unit = {},
     onOpenScripts: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAbout: () -> Unit
@@ -223,7 +225,9 @@ fun DashboardScreen(
                                         bars = bars,
                                         fetchedAtMs = data.fetchedAtMs,
                                         clock = clock,
-                                        dimmed = dimmed
+                                        dimmed = dimmed,
+                                        onEnergyClick = onOpenGym,
+                                        onNerveClick = onOpenCrimes
                                     )
                                 }
                             }

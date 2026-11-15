@@ -94,7 +94,10 @@ fun DeveloperScreen(
             "faction/crimes",
             "faction/{id}/rankedwars",
             "faction/{id}/members",
-            "user/{id}/profile"
+            "user/{id}/profile",
+            "user/list?cat=friends",
+            "user/list?cat=targets",
+            "user/list?cat=enemies"
         )
     }
 

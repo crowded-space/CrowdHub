@@ -11,7 +11,12 @@ object QuickLinks {
             if (pid != null && pid > 0L) {
                 add(QuickLinkItem("Profile", TornUrls.profile(pid)))
             }
+            add(QuickLinkItem("Gym", TornUrls.GYM))
+            add(QuickLinkItem("Crimes", TornUrls.CRIMES))
             add(QuickLinkItem("Hospital", TornUrls.HOSPITAL_LIST))
+            add(QuickLinkItem("Faction", TornUrls.FACTION))
+            add(QuickLinkItem("Travel", TornUrls.TRAVEL))
+            add(QuickLinkItem("City", TornUrls.CITY))
         }
     }
 }

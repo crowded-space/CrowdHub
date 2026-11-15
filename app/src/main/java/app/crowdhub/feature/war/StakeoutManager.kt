@@ -27,10 +27,12 @@ class StakeoutManager(
     private val tornApi: TornApi,
     private val settingsStore: SettingsStore,
     private val clock: Clock,
-    private val differ: MemberDiffer = MemberDiffer()
+    private val differ: MemberDiffer = MemberDiffer(),
+    private val resolveProfileId: suspend (String) -> String = { "default" },
+    private val playerNameCache: app.crowdhub.core.profile.PlayerNameCache? = null
 ) {
-    private val previousSnapshotsByFaction = ConcurrentHashMap<Long, Map<Long, MemberSnapshotRecord>>()
-    private val lastPollMsByFaction = ConcurrentHashMap<Long, Long>()
+    private val previousSnapshotsByFaction = ConcurrentHashMap<Pair<String, Long>, Map<Long, MemberSnapshotRecord>>()
+    private val lastPollMsByFaction = ConcurrentHashMap<Pair<String, Long>, Long>()
 
     fun observeStakeouts(accountId: String): Flow<List<StakeoutEntity>> =
         warAndFlightDao.observeStakeouts(accountId)
@@ -63,14 +65,20 @@ class StakeoutManager(
         members: List<TornFactionMember>
     ): List<AlertCandidate> {
         val nowMs = clock.nowEpochMs()
-        var previous = previousSnapshotsByFaction[factionId]
+        val profileId = resolveProfileId(accountId)
+        val cacheKey = profileId to factionId
+
+        playerNameCache?.recordNames(profileId, members.associate { it.playerId to it.name })
+
+        var previous = previousSnapshotsByFaction[cacheKey]
         if (previous == null) {
-            val dbRows = warAndFlightDao.getSnapshotsForFaction(factionId)
+            val dbRows = warAndFlightDao.getSnapshotsForFaction(profileId, factionId)
             if (dbRows.isNotEmpty()) {
+                val cachedNames = playerNameCache?.getAnyCachedNames(profileId, dbRows.map { it.playerId }).orEmpty()
                 previous = dbRows.associate { row ->
                     row.playerId to MemberSnapshotRecord(
                         playerId = row.playerId,
-                        name = "Player ${row.playerId}",
+                        name = cachedNames[row.playerId] ?: "Unknown #${row.playerId}",
                         state = StatusKind.fromRaw(row.state),
                         description = row.descriptionHash,
                         untilSec = row.untilSec,
@@ -84,7 +92,7 @@ class StakeoutManager(
             }
         }
 
-        val prevPollAt = lastPollMsByFaction[factionId]
+        val prevPollAt = lastPollMsByFaction[cacheKey]
         val events = differ.diff(previous, members, prevPollAt, nowMs)
 
         // Feed FlightRepository first
@@ -92,6 +100,7 @@ class StakeoutManager(
             when (ev) {
                 is MemberEvent.TravelStarted -> {
                     flightRepository.onTravelObserved(
+                        profileId = profileId,
                         playerId = ev.playerId,
                         description = ev.description,
                         planeTypeApi = ev.planeTypeApi,
@@ -102,6 +111,7 @@ class StakeoutManager(
                 }
                 is MemberEvent.Landed -> {
                     flightRepository.onLanded(
+                        profileId = profileId,
                         playerId = ev.playerId,
                         landedPrevPollAtMs = ev.landedPrevPollAtMs,
                         landedDetectedAtMs = ev.landedDetectedAtMs
@@ -124,12 +134,13 @@ class StakeoutManager(
                 tsMs = nowMs
             )
         }
-        previousSnapshotsByFaction[factionId] = newRecordMap
-        lastPollMsByFaction[factionId] = nowMs
+        previousSnapshotsByFaction[cacheKey] = newRecordMap
+        lastPollMsByFaction[cacheKey] = nowMs
 
         warAndFlightDao.upsertSnapshots(
             members.map { m ->
                 MemberSnapshotEntity(
+                    profileId = profileId,
                     factionId = factionId,
                     playerId = m.playerId,
                     ts = nowMs,
@@ -171,6 +182,7 @@ class StakeoutManager(
 
             if (stake.alertLanding && member.status.state == StatusKind.TRAVELING) {
                 val est: FlightEstimate? = flightRepository.estimateForMember(
+                    profileId = profileId,
                     playerId = member.playerId,
                     description = member.status.description,
                     planeTypeApi = member.status.planeImageType,
@@ -239,12 +251,13 @@ class StakeoutManager(
         override suspend fun collect(ctx: AlertContext): List<AlertCandidate> {
             val prefs = settingsStore.current()
             if (!prefs.alertsWarEnabled && !prefs.backgroundFlightSyncEnabled) return emptyList()
+            val profileId = resolveProfileId(ctx.accountId)
 
             return when (ctx.mode) {
                 AlertTriggerMode.BACKGROUND -> {
                     val ownFactionId = (tornApi.getOwnFactionId(ctx.accountId, RequestPriority.BACKGROUND) as? ApiResult.Success)?.data
                     val candidates = mutableListOf<AlertCandidate>()
-                    var enemyFactionToSync: Long? = prefs.manualWarFactionId.trim().toLongOrNull()?.takeIf { it > 0L }
+                    var enemyFactionToSync: Long? = prefs.manualWarFactionIdFor(profileId).trim().toLongOrNull()?.takeIf { it > 0L }
 
                     if (ownFactionId != null) {
                         val wars = (tornApi.getRankedWars(ctx.accountId, ownFactionId, RequestPriority.BACKGROUND) as? ApiResult.Success)?.data
@@ -286,7 +299,7 @@ class StakeoutManager(
                 }
                 AlertTriggerMode.WATCH -> {
                     val ownId = (tornApi.getOwnFactionId(ctx.accountId, RequestPriority.WATCH) as? ApiResult.Success)?.data
-                    val manualId = prefs.manualWarFactionId.trim().toLongOrNull()?.takeIf { it > 0L }
+                    val manualId = prefs.manualWarFactionIdFor(profileId).trim().toLongOrNull()?.takeIf { it > 0L }
                     val enemyFactionId = manualId ?: if (ownId != null) {
                         val wars = (tornApi.getRankedWars(ctx.accountId, ownId, RequestPriority.WATCH) as? ApiResult.Success)?.data
                         wars?.firstOrNull { it.isActive }?.enemyFactionId

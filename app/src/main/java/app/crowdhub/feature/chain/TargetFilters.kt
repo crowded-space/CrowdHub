@@ -1,11 +1,27 @@
 package app.crowdhub.feature.chain
 
+import app.crowdhub.core.db.StakeoutEntity
 import app.crowdhub.core.ui.components.StatusKind
+import app.crowdhub.feature.flight.FlightEstimate
 
 enum class TargetSourceTab(val label: String) {
     HOSPITAL("Hospital"),
     FFSCOUTER("FFScouter"),
     MY_LIST("My List")
+}
+
+enum class PeopleInnerTab(val label: String, val testTag: String) {
+    FRIENDS("Friends", "people_tab_friends"),
+    TARGETS("Targets", "people_tab_targets"),
+    ENEMIES("Enemies", "people_tab_enemies"),
+    CHAIN("Chain", "people_tab_chain"),
+    ADDITIONAL("Additional", "people_tab_additional"),
+    STAKEOUT("Stakeout", "people_tab_stakeout")
+}
+
+enum class ChainSubTab(val label: String, val testTag: String) {
+    HOSPITAL("Hospital", "chain_subtab_hospital"),
+    FFSCOUTER("FFScouter", "chain_subtab_ffscouter")
 }
 
 enum class TargetStatusFilter(val label: String) {
@@ -36,6 +52,41 @@ data class TargetItem(
     val watched: Boolean,
     val source: TargetSourceTab,
     val capturedAtMs: Long? = null
+)
+
+data class PeopleUserListItem(
+    val playerId: Long,
+    val name: String,
+    val level: Int?,
+    val status: StatusKind,
+    val statusDescription: String,
+    val hospitalLeavesAtSec: Long?,
+    val lastActionStatus: String?,
+    val lastActionRelative: String?,
+    val lastActionSec: Long?,
+    val note: String?,
+    val fairFight: Double?,
+    val bsEstimate: Long?,
+    val bsHuman: String?,
+    val stakedOut: Boolean,
+    val inAdditional: Boolean
+)
+
+data class StakeoutHubItem(
+    val stakeout: StakeoutEntity,
+    val name: String,
+    val level: Int?,
+    val status: StatusKind,
+    val statusDescription: String,
+    val hospitalLeavesAtSec: Long?,
+    val lastActionStatus: String?,
+    val lastActionRelative: String?,
+    val lastActionSec: Long?,
+    val flightEstimate: FlightEstimate?,
+    val fairFight: Double?,
+    val bsEstimate: Long?,
+    val bsHuman: String?,
+    val inAdditional: Boolean
 )
 
 data class TargetFilterCriteria(
@@ -108,5 +159,23 @@ object TargetFilters {
                     .thenBy { it.playerId }
             }
         )
+    }
+
+    fun filterPeopleList(
+        items: List<PeopleUserListItem>,
+        query: String,
+        statusFilter: TargetStatusFilter
+    ): List<PeopleUserListItem> {
+        val q = query.trim().lowercase()
+        return items.filter { item ->
+            if (q.isNotEmpty() && !item.name.lowercase().contains(q) && !item.playerId.toString().contains(q)) {
+                return@filter false
+            }
+            when (statusFilter) {
+                TargetStatusFilter.ALL -> true
+                TargetStatusFilter.HOSPITAL -> item.status == StatusKind.HOSPITAL
+                TargetStatusFilter.OKAY -> item.status == StatusKind.OKAY
+            }
+        }
     }
 }

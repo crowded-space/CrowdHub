@@ -23,6 +23,7 @@ import app.crowdhub.core.network.PersistentCacheStore
 import app.crowdhub.core.network.RateLimiter
 import app.crowdhub.core.network.ResponseCache
 import app.crowdhub.core.network.ServerClock
+import app.crowdhub.core.profile.PlayerNameCache
 import app.crowdhub.core.profile.ProfileRepository
 import app.crowdhub.core.scripts.GmBridge
 import app.crowdhub.core.scripts.ScriptRepository
@@ -56,13 +57,24 @@ class AppContainer(context: Context) {
     val okHttpClient: OkHttpClient = HttpClientFactory.create()
     val rateLimiter: RateLimiter = RateLimiter(clock)
 
+    val playerNameCache: PlayerNameCache = PlayerNameCache(db.playerNameCacheDao(), clock)
+
     private val persistentCacheStore = object : PersistentCacheStore {
         override suspend fun read(key: String): CachedResponse? {
             return db.cacheDao().get(key)?.let { CachedResponse(it.body, it.fetchedAt) }
         }
 
         override suspend fun write(key: String, body: String, fetchedAtMs: Long, ttlMs: Long) {
-            db.cacheDao().put(CacheEntryEntity(key, body, fetchedAtMs, ttlMs))
+            val resolvedProfileId = if (key.count { it == '|' } >= 2) {
+                key.substringBefore('|').ifBlank { "default" }
+            } else {
+                "default"
+            }
+            db.cacheDao().put(CacheEntryEntity(key, resolvedProfileId, body, fetchedAtMs, ttlMs))
+        }
+
+        override suspend fun deleteForProfile(profileId: String) {
+            db.cacheDao().deleteForProfile(profileId)
         }
 
         override suspend fun clearAll() {
@@ -94,6 +106,8 @@ class AppContainer(context: Context) {
     val browserNavigator: BrowserNavigator = BrowserNavigator()
     val attackNavigator: AttackNavigator = AttackNavigator(browserNavigator, settingsStore)
 
+    val flightRepository: FlightRepository = FlightRepository(db.warAndFlightDao(), clock)
+
     val profileRepository: ProfileRepository = ProfileRepository(
         db = db,
         vault = secretVault,
@@ -102,7 +116,8 @@ class AppContainer(context: Context) {
         responseCache = responseCache,
         settingsStore = settingsStore,
         clock = clock,
-        onWipeWebProfile = { accountId -> webProfileManager.wipe(accountId) }
+        onWipeWebProfile = { profileId -> webProfileManager.wipe(profileId) },
+        onClearProfileFlightState = { profileId -> flightRepository.clearProfileState(profileId) }
     )
 
     val tornApi: TornApi = TornApi(
@@ -113,27 +128,44 @@ class AppContainer(context: Context) {
         vault = secretVault,
         onKeyRejected = { accountId, status, reason ->
             profileRepository.markAccountKeyStatus(accountId, status, reason)
-        }
+        },
+        resolveProfileId = { accountId -> profileRepository.resolveProfileIdForAccount(accountId) }
     )
 
     val ffRateLimiter: FfRateLimiter = FfRateLimiter(clock)
     val ffApi: FfApi = FfApi(okHttpClient, ffRateLimiter, secretVault, clock)
-    val ffRepository: FfRepository = FfRepository(db.connectorLinkDao(), db.ffCacheDao(), ffApi, secretVault, clock)
+    val ffRepository: FfRepository = FfRepository(
+        connectorLinkDao = db.connectorLinkDao(),
+        ffCacheDao = db.ffCacheDao(),
+        ffApi = ffApi,
+        vault = secretVault,
+        clock = clock,
+        resolveProfileId = { accountId -> profileRepository.resolveProfileIdForAccount(accountId) }
+    )
 
-    val stockRepository: StockRepository = StockRepository(db.stockDao(), tornApi, settingsStore, clock)
-    val flightRepository: FlightRepository = FlightRepository(db.warAndFlightDao(), clock)
+    val stockRepository: StockRepository = StockRepository(
+        stockDao = db.stockDao(),
+        tornApi = tornApi,
+        settingsStore = settingsStore,
+        clock = clock,
+        resolveProfileId = { accountId -> profileRepository.resolveProfileIdForAccount(accountId) }
+    )
     val stakeoutManager: StakeoutManager = StakeoutManager(
         warAndFlightDao = db.warAndFlightDao(),
         flightRepository = flightRepository,
         tornApi = tornApi,
         settingsStore = settingsStore,
-        clock = clock
+        clock = clock,
+        resolveProfileId = { accountId -> profileRepository.resolveProfileIdForAccount(accountId) },
+        playerNameCache = playerNameCache
     )
     val factionRepository: FactionRepository = FactionRepository(
         tornApi = tornApi,
         flightRepository = flightRepository,
         stakeoutManager = stakeoutManager,
-        clock = clock
+        clock = clock,
+        playerNameCache = playerNameCache,
+        resolveProfileId = { accountId -> profileRepository.resolveProfileIdForAccount(accountId) }
     )
 
     val tornProvider: TornProvider = TornProvider(
@@ -171,7 +203,10 @@ class AppContainer(context: Context) {
         ffRepository = ffRepository,
         alertEngine = alertEngine,
         clock = clock,
-        scope = appScope
+        scope = appScope,
+        stakeoutManager = stakeoutManager,
+        flightRepository = flightRepository,
+        playerNameCache = playerNameCache
     )
 
     init {
@@ -188,6 +223,8 @@ class CrowdHubApp : Application(), AlertHost {
         NotificationChannels.createAll(this)
         container = AppContainer(this)
         container.appScope.launch {
+            val activeProfileId = container.db.profileDao().getActiveProfile()?.id
+            container.settingsStore.migrateLegacyProfileScopedPrefsIfNeeded(activeProfileId)
             if (container.settingsStore.current().onboardingCompleted) {
                 PollWorker.enqueue(this@CrowdHubApp)
             }

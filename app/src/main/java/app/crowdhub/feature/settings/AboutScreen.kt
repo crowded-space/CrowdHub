@@ -51,7 +51,7 @@ fun AboutScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             CrowCard {
-                CrowdWordmark()
+                CrowdWordmark(isHero = true)
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = "Watch the flock.",

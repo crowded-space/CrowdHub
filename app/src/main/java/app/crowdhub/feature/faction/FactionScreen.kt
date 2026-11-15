@@ -224,7 +224,7 @@ fun FactionScreen(
                         onToggleStar = factionViewModel::toggleStar,
                         onAddToTargets = factionViewModel::addToTargets,
                         onOpenProfile = { pid ->
-                            browserNavigator.requestInAppOpen(TornUrls.profile(pid))
+                            browserNavigator.requestInAppOpen(TornUrls.profile(pid), inNewTab = true, switchToTab = true)
                             onNavigateToBrowser()
                         },
                         onAttack = { pid ->
@@ -251,7 +251,7 @@ fun FactionScreen(
                         clock = clock,
                         onFilterChange = factionViewModel::setAttackFilter,
                         onOpenProfile = { pid ->
-                            browserNavigator.requestInAppOpen(TornUrls.profile(pid))
+                            browserNavigator.requestInAppOpen(TornUrls.profile(pid), inNewTab = true, switchToTab = true)
                             onNavigateToBrowser()
                         },
                         onAttackPlayer = { pid ->

@@ -33,7 +33,8 @@ class TornApi(
     private val responseCache: ResponseCache,
     private val clock: ServerClock,
     private val vault: SecretVault,
-    private val onKeyRejected: suspend (accountId: String, status: AccountStatus, reason: String) -> Unit
+    private val onKeyRejected: suspend (accountId: String, status: AccountStatus, reason: String) -> Unit,
+    private val resolveProfileId: suspend (String) -> String = { "default" }
 ) {
     suspend fun validateKey(accountId: String, rawSecret: String): ApiResult<TornBasicInfo> {
         val basicRaw = executeDirect(
@@ -79,7 +80,8 @@ class TornApi(
             path = "user/basic",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_IDENTITY_MS
         ) { raw -> TornMappers.mapBasic(raw) }
     }
 
@@ -94,7 +96,8 @@ class TornApi(
             path = "user/bars",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapBars(raw) }
     }
 
@@ -109,7 +112,8 @@ class TornApi(
             path = "user/cooldowns",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapCooldowns(raw) }
     }
 
@@ -124,7 +128,8 @@ class TornApi(
             path = "user/travel",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapTravel(raw) }
     }
 
@@ -139,7 +144,8 @@ class TornApi(
             path = "user/money",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapMoney(raw) }
     }
 
@@ -154,7 +160,8 @@ class TornApi(
             path = "user/notifications",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapNotifications(raw) }
     }
 
@@ -169,7 +176,8 @@ class TornApi(
             path = "torn/stocks",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_STOCKS_MS
         ) { raw -> TornMappers.mapStocks(raw) }
     }
 
@@ -184,7 +192,8 @@ class TornApi(
             path = "user/stocks",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_STOCKS_MS
         ) { raw -> TornMappers.mapUserStocks(raw) }
 
         if (v2Result is ApiResult.Success) return v2Result
@@ -199,7 +208,8 @@ class TornApi(
             path = "user/",
             queryParams = mapOf("selections" to "stocks"),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_STOCKS_MS
         ) { raw -> TornMappers.mapUserStocks(raw) }
     }
 
@@ -214,7 +224,8 @@ class TornApi(
             path = "user/",
             queryParams = mapOf("selections" to "profile"),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_IDENTITY_MS
         ) { raw ->
             val info = TornMappers.mapBasic(raw)
             info?.factionId
@@ -234,7 +245,8 @@ class TornApi(
             path = "faction/$factionId/rankedwars",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_MEDIUM_MS
         ) { raw -> TornMappers.mapRankedWars(raw, factionId, nowSec) }
     }
 
@@ -250,7 +262,8 @@ class TornApi(
             path = "faction/$factionId/members",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapFactionMembers(raw) }
     }
 
@@ -267,7 +280,8 @@ class TornApi(
             path = v2Path,
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_IDENTITY_MS
         ) { raw -> TornMappers.mapFactionBasic(raw) }
 
         if (v2Res is ApiResult.Success) return v2Res
@@ -281,7 +295,8 @@ class TornApi(
             path = v1Path,
             queryParams = mapOf("selections" to "basic"),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_IDENTITY_MS
         ) { raw -> TornMappers.mapFactionBasic(raw) }
     }
 
@@ -298,7 +313,8 @@ class TornApi(
             path = v2Path,
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapFactionChain(raw) }
     }
 
@@ -313,7 +329,8 @@ class TornApi(
             path = "faction/attacks",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapFactionAttacks(raw) }
 
         if (v2Res is ApiResult.Success) return v2Res
@@ -326,7 +343,8 @@ class TornApi(
             path = "faction/",
             queryParams = mapOf("selections" to "attacks"),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_LIVE_MS
         ) { raw -> TornMappers.mapFactionAttacks(raw) }
     }
 
@@ -341,7 +359,8 @@ class TornApi(
             path = "faction/inventory",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_ARMORY_MS
         ) { raw -> TornMappers.mapFactionArmory(raw) }
 
         if (v2Res is ApiResult.Success && v2Res.data.isNotEmpty()) return v2Res
@@ -358,7 +377,8 @@ class TornApi(
             path = "faction/",
             queryParams = mapOf("selections" to "weapons,armor,medical,drugs,boosters,temporary,cesium"),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_ARMORY_MS
         ) { raw -> TornMappers.mapFactionArmory(raw) }
 
         return if (v1Res is ApiResult.Success || v2Res !is ApiResult.Success) v1Res else v2Res
@@ -375,7 +395,8 @@ class TornApi(
             path = "faction/balance",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_BALANCE_MS
         ) { raw -> TornMappers.mapFactionBalance(raw) }
 
         if (v2Res is ApiResult.Success) return v2Res
@@ -388,7 +409,8 @@ class TornApi(
             path = "faction/",
             queryParams = mapOf("selections" to "currency"),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_BALANCE_MS
         ) { raw -> TornMappers.mapFactionBalance(raw) }
     }
 
@@ -403,7 +425,8 @@ class TornApi(
             path = "faction/crimes",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_MEDIUM_MS
         ) { raw -> TornMappers.mapFactionCrimes(raw) }
     }
 
@@ -418,7 +441,8 @@ class TornApi(
             path = "user/organizedcrime",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_MEDIUM_MS
         ) { raw -> TornMappers.mapUserOrganizedCrime(raw) }
         return when (res) {
             is ApiResult.Success -> ApiResult.Success(
@@ -435,11 +459,29 @@ class TornApi(
         }
     }
 
+    suspend fun getUserList(
+        accountId: String,
+        category: TornUserListCategory,
+        priority: RequestPriority,
+        forceRefresh: Boolean = false
+    ): ApiResult<List<TornUserListEntry>> {
+        return fetchAndMap(
+            accountId = accountId,
+            version = ApiVersion.V2,
+            path = "user/list",
+            queryParams = mapOf("cat" to category.apiValue),
+            priority = priority,
+            forceRefresh = forceRefresh,
+            ttlMs = TTL_MEDIUM_MS
+        ) { raw -> TornMappers.mapUserList(raw) }
+    }
+
     suspend fun getOtherProfile(
         accountId: String,
         targetPlayerId: Long,
         priority: RequestPriority,
-        forceRefresh: Boolean = false
+        forceRefresh: Boolean = false,
+        ttlMs: Long = TTL_MEDIUM_MS
     ): ApiResult<TornOtherProfile> {
         return fetchAndMap(
             accountId = accountId,
@@ -447,7 +489,8 @@ class TornApi(
             path = "user/$targetPlayerId/profile",
             queryParams = emptyMap(),
             priority = priority,
-            forceRefresh = forceRefresh
+            forceRefresh = forceRefresh,
+            ttlMs = ttlMs
         ) { raw -> TornMappers.mapOtherProfile(raw, targetPlayerId) }
     }
 
@@ -484,6 +527,9 @@ class TornApi(
                 val id = paramId?.trim()?.takeIf { it.all(Char::isDigit) && it.isNotEmpty() } ?: "1"
                 Triple(ApiVersion.V2, "user/$id/profile", emptyMap())
             }
+            "user/list?cat=friends" -> Triple(ApiVersion.V2, "user/list", mapOf("cat" to "friends"))
+            "user/list?cat=targets" -> Triple(ApiVersion.V2, "user/list", mapOf("cat" to "targets"))
+            "user/list?cat=enemies" -> Triple(ApiVersion.V2, "user/list", mapOf("cat" to "enemies"))
             else -> Triple(ApiVersion.V2, "user/basic", emptyMap())
         }
 
@@ -514,13 +560,15 @@ class TornApi(
         queryParams: Map<String, String>,
         priority: RequestPriority,
         forceRefresh: Boolean,
+        ttlMs: Long = ResponseCache.DEFAULT_TTL_MS,
         mapper: (String) -> T?
     ): ApiResult<T> {
         val apiKey = vault.get(SecretVault.apiKeyAlias(accountId))
             ?: return ApiResult.Failure(ApiError.InvalidKey("Missing API key"))
 
-        val key = CacheKey(accountId, "${version.name}/$path", queryParams)
-        val rawResult = responseCache.getOrFetch(key = key, forceRefresh = forceRefresh) {
+        val profileId = resolveProfileId(accountId)
+        val key = CacheKey(accountId, "${version.name}/$path", queryParams, profileId = profileId)
+        val rawResult = responseCache.getOrFetch(key = key, ttlMs = ttlMs, forceRefresh = forceRefresh) {
             executeDirect(accountId, apiKey, version, path, queryParams, priority, notifyOnKeyError = true)
         }
 
@@ -668,6 +716,13 @@ class TornApi(
 
     companion object {
         enum class ApiVersion { V1, V2 }
+
+        const val TTL_LIVE_MS = 30_000L
+        const val TTL_STOCKS_MS = 60_000L
+        const val TTL_MEDIUM_MS = 120_000L
+        const val TTL_BALANCE_MS = 180_000L
+        const val TTL_ARMORY_MS = 300_000L
+        const val TTL_IDENTITY_MS = 600_000L
 
         fun mapTornErrorCode(code: Int, rawMessage: String?): ApiError {
             val msg = CrowLog.redact(rawMessage ?: "Torn error $code")

@@ -270,6 +270,9 @@ fun FactionMembersTab(
                     text = "Last action: ${m.lastActionStatus ?: "—"} (${m.lastActionRelative ?: "—"})",
                     color = CrowColors.TextMuted
                 )
+                item.flightEstimate?.let { est ->
+                    FlightChip(estimate = est, clock = clock)
+                }
 
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

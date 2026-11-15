@@ -17,15 +17,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.crowdhub.core.network.Clock
+import app.crowdhub.core.network.LocalTimeFormatter
 import app.crowdhub.core.ui.components.CountdownText
 import app.crowdhub.core.ui.components.CrowCard
 import app.crowdhub.core.ui.components.StatusChip
 import app.crowdhub.core.ui.components.StatusKind
 import app.crowdhub.core.ui.theme.CrowColors
 import app.crowdhub.provider.torn.TornTravel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun TravelCard(
@@ -83,13 +81,14 @@ fun TravelCard(
             Spacer(Modifier.height(6.dp))
 
             if (arrivalMs != null) {
-                val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                val arrivalLocal = LocalTimeFormatter.formatTimeHms(arrivalMs)
+                val zoneLabel = LocalTimeFormatter.shortZoneLabel(arrivalMs)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Arrives ${timeFmt.format(Date(arrivalMs))}",
+                        text = "Arrives $arrivalLocal $zoneLabel",
                         style = MaterialTheme.typography.bodySmall,
                         color = CrowColors.TextMuted
                     )
